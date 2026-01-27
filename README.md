@@ -190,7 +190,7 @@ src/hal/
 ## Project Structure
 
 ```
-rpi5-industrial-gateway/
+QEMU_Cortex-A72/
 ├── README.md
 ├── LICENSE (MIT)
 ├── Makefile                 # Build system (PLATFORM=qemu_virt|rpi5)
@@ -273,8 +273,8 @@ brew install gdb
 ### Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/rpi5-industrial-gateway.git
-cd rpi5-industrial-gateway
+git clone https://github.com/yourusername/QEMU_Cortex-A72.git
+cd QEMU_Cortex-A72
 ```
 
 ---
