@@ -1,0 +1,21 @@
+# Enable 64-bit ARM mode
+# Boot the CPU in AArch64 mode
+arm_64bit=1
+
+# Enable UART on GPIO 14/15 (TX/RX)
+# Enable serial console for debugging
+enable_uart=1
+uart_2712=on
+
+# Kernel image name (bare metal uses kernel8.img)
+kernel=kernel8.img
+
+# Minimal GPU memory (bare metal doesn't use GPU)
+gpu_mem=16
+
+# Disable unused hardware detection
+camera_auto_detect=0
+display_auto_detect=0
+
+# Bare metal firmware flag (Pi5 - may not apply)
+# boot_load_flags=0x1
