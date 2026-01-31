@@ -2,36 +2,45 @@
 .global _start
 
 _start:
-    // Read CPU ID (MPIDR_EL1)
+    // Read CPU ID
     mrs     x0, mpidr_el1
-    and     x0, x0, #0xFF      // Extract CPU ID
-    cbz     x0, primary_cpu    // CPU 0 continues, others spin
+    and     x0, x0, #0xFF
     
-secondary_spin:
-    wfe                        // Wait for event
-    b       secondary_spin
-
+    // Set stack - simple calculation
+    // Base stack at 0x40200000 (way above code)
+    // Each core gets 16KB (0x4000)
+    mov     x1, #0x40200000
+    add     x0, x0, #1              // core_id + 1
+    mov     x2, #0x4000
+    mul     x2, x0, x2
+    add     x1, x1, x2
+    mov     sp, x1
+    
+    // Get CPU ID again for branching
+    mrs     x0, mpidr_el1
+    and     x0, x0, #0xFF
+    
+    // Core 0 goes to main, others go to secondary_main
+    cbnz    x0, secondary_cpu
+    
 primary_cpu:
-    // Set stack pointer (core 0)
-    ldr     x0, =_stack_top
-    mov     sp, x0
-    
-    // Clear BSS section
+    // Clear BSS (Core 0 only)
     ldr     x0, =__bss_start
     ldr     x1, =__bss_end
-    sub     x1, x1, x0         // BSS size
-    cbz     x1, bss_done
     
 clear_bss:
+    cmp     x0, x1
+    b.ge    bss_done
     str     xzr, [x0], #8
-    subs    x1, x1, #8
-    b.gt    clear_bss
+    b       clear_bss
     
 bss_done:
-    // Jump to C main()
     bl      main
+    b       hang
+
+secondary_cpu:
+    bl      secondary_main
     
-    // Hang if main returns
 hang:
     wfe
-    b hang
+    b       hang

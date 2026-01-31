@@ -1,7 +1,7 @@
 @echo off
 
 REM ===============================================
-REM Build and Run Multi-Core QEMU with Diagnostics
+REM Build and Run QEMU in DEBUG MODE (with GDB)
 REM ===============================================
 
 REM Kill any existing QEMU processes first
@@ -45,25 +45,31 @@ if not exist "build\kernel.elf" (
 
 echo.
 echo ============================================
-echo Running QEMU...
+echo Starting QEMU in DEBUG MODE
 echo ============================================
 echo.
-echo TIP: Press Ctrl-A then C to enter QEMU monitor
-echo      Type 'info registers' to inspect CPU state
-echo      Type 'quit' to exit QEMU
+echo QEMU is waiting for GDB connection on port 1234
+echo.
+echo In another terminal, run:
+echo   aarch64-none-elf-gdb build\kernel.elf
+echo   (gdb) target remote localhost:1234
+echo   (gdb) break _start
+echo   (gdb) continue
+echo   (gdb) info registers
+echo   (gdb) stepi
+echo.
+echo Press Ctrl-C to stop QEMU when done debugging
 echo.
 
-REM Normal run mode (use -S -s for debug mode with GDB)
-qemu-system-aarch64 -M virt -cpu cortex-a72 -smp 4 -m 2048M -nographic -kernel build\kernel.elf -serial mon:stdio
+REM Debug mode: -S pauses at start, -s opens GDB server on port 1234
+qemu-system-aarch64 -M virt -cpu cortex-a72 -smp 4 -m 2048M -nographic -kernel build\kernel.elf -serial mon:stdio -S -s
 
 echo.
 echo ============================================
 echo QEMU terminated
 echo ============================================
-echo.
 
-REM Final cleanup check
-echo Cleaning up any remaining QEMU processes...
+REM Final cleanup
 taskkill /F /IM qemu-system-aarch64.exe 2>nul
 
 pause
