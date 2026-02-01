@@ -1,91 +1,124 @@
-// UART registers
-#define UART0_DR (*((volatile unsigned int*)0x09000000))
-#define UART0_FR (*((volatile unsigned int*)0x09000018))
+/******************************************************************************
+ * File: main.c
+ * Project: RPi5-Industrial-Gateway Bare Metal Development
+ * 
+ * Target Hardware: Raspberry Pi 5 (BCM2712, Cortex-A76)
+ * UART Controller: ARM PrimeCell UART (PL011) r1p5
+ * Base Address:
+ *   - QEMU virt: 0x09000000
+ *   - RPi5 RP1: 0x40030000
+ * 
+ * Copyright (c) 2026
+ * Author: Maior Cristian
+ * License: MIT / Proprietary (Bachelor Thesis Project)
+ *****************************************************************************/
 
-// PSCI function ID
+ /******************************************************************************
+ * ⚠️  CRITICAL: Global variables with initializers will HANG the system!
+ *     boot.S does not initialize .data/.bss sections.
+ *     Use fixed memory addresses instead (e.g., LOCK_ADDR).
+ *****************************************************************************/
+
+/******************************************************************************
+ * Include headers
+ *****************************************************************************/
+#include "uart/uart0.h"
+
+/******************************************************************************
+ * Macro Definition
+ *****************************************************************************/
 #define PSCI_CPU_ON 0xC4000003
+#define LOCK_ADDR ((volatile int*)0x40300000)
 
-// Simple lock
-volatile int uart_lock = 0;
-
-void uart_putc(char c) {
-    while (UART0_FR & (1 << 5));
-    UART0_DR = c;
-}
-
-void uart_puts(const char* str) {
-    while (*str) {
-        if (*str == '\n') uart_putc('\r');
-        uart_putc(*str++);
-    }
-}
-
-void uart_puthex(unsigned long val) {
-    const char hex[] = "0123456789ABCDEF";
-    uart_puts("0x");
-    for (int i = 60; i >= 0; i -= 4) {
-        uart_putc(hex[(val >> i) & 0xF]);
-    }
-}
-
+/******************************************************************************
+ * Function: delay
+ * Description: Simple busy-wait delay loop
+ * Parameters: n - Number of loop iterations
+ * Returns: None
+ *****************************************************************************/
 void delay(int n) {
     for (volatile int i = 0; i < n; i++);
 }
 
+/******************************************************************************
+ * Function: get_cpu_id
+ * Description: Reads the current CPU core ID from MPIDR_EL1 register
+ * Parameters: None
+ * Returns: CPU affinity level 0 (core ID: 0-3)
+ *****************************************************************************/
 unsigned long get_cpu_id(void) {
     unsigned long id;
     __asm__ volatile("mrs %0, mpidr_el1" : "=r"(id));
     return id & 0xFF;
 }
 
+/******************************************************************************
+ * Function: read_sp
+ * Description: Reads the current stack pointer value
+ * Parameters: None
+ * Returns: Current stack pointer address
+ *****************************************************************************/
 unsigned long read_sp(void) {
     unsigned long sp;
     __asm__ volatile("mov %0, sp" : "=r"(sp));
     return sp;
 }
 
+/******************************************************************************
+ * Function: read_current_el
+ * Description: Reads the current exception level from CurrentEL register
+ * Parameters: None
+ * Returns: Exception level (1, 2, or 3)
+ *****************************************************************************/
 unsigned long read_current_el(void) {
     unsigned long el;
     __asm__ volatile("mrs %0, CurrentEL" : "=r"(el));
     return (el >> 2) & 0x3;
 }
 
+/******************************************************************************
+ * Function: read_sctlr
+ * Description: Reads the System Control Register (SCTLR_EL1)
+ * Parameters: None
+ * Returns: SCTLR_EL1 register value
+ *****************************************************************************/
 unsigned long read_sctlr(void) {
     unsigned long sctlr;
     __asm__ volatile("mrs %0, SCTLR_EL1" : "=r"(sctlr));
     return sctlr;
 }
 
-// Simplified lock
+/******************************************************************************
+ * Function: simple_lock
+ * Description: Acquires a simple spinlock for UART synchronization
+ * Parameters: None
+ * Returns: None
+ * Note: Spins until lock is available, then sets lock
+ *****************************************************************************/
 void simple_lock(void) {
-    while (1) {
-        int result = 0;
-        __asm__ volatile(
-            "ldaxr w1, [%2]\n"
-            "cmp w1, wzr\n"
-            "b.ne 1f\n"
-            "mov w1, #1\n"
-            "stxr w2, w1, [%2]\n"
-            "cmp w2, wzr\n"
-            "b.ne 1f\n"
-            "mov %w0, #1\n"
-            "b 2f\n"
-            "1: wfe\n"
-            "2:\n"
-            : "=r"(result)
-            : "r"(0), "r"(&uart_lock)
-            : "w1", "w2", "memory"
-        );
-        if (result) break;
-    }
+    while (*LOCK_ADDR != 0);
+    *LOCK_ADDR = 1;
 }
 
+/******************************************************************************
+ * Function: simple_unlock
+ * Description: Releases the spinlock
+ * Parameters: None
+ * Returns: None
+ *****************************************************************************/
 void simple_unlock(void) {
-    __asm__ volatile("stlr wzr, [%0]" : : "r"(&uart_lock) : "memory");
-    __asm__ volatile("sev");
+    *LOCK_ADDR = 0;
 }
 
-// PSCI CPU_ON
+/******************************************************************************
+ * Function: psci_cpu_on
+ * Description: Invokes PSCI CPU_ON function to start a secondary CPU core
+ * Parameters: 
+ *   cpu - Target CPU ID (1, 2, or 3)
+ *   entry - Entry point address for the secondary CPU
+ * Returns: PSCI return code (0 = success, negative = error)
+ * Note: Uses HVC instruction to call into EL2 firmware
+ *****************************************************************************/
 long psci_cpu_on(unsigned long cpu, unsigned long entry) {
     register unsigned long x0 __asm__("x0") = PSCI_CPU_ON;
     register unsigned long x1 __asm__("x1") = cpu;
@@ -95,12 +128,19 @@ long psci_cpu_on(unsigned long cpu, unsigned long entry) {
     return x0;
 }
 
+/******************************************************************************
+ * Function: secondary_main
+ * Description: Entry point for secondary CPU cores (Cores 1-3)
+ * Parameters: None
+ * Returns: None (infinite loop)
+ * Note: Displays core ID and system state, then enters WFE idle loop
+ *****************************************************************************/
 extern void _start(void);
 
 void secondary_main(void) {
     unsigned long cpu = get_cpu_id();
     delay(cpu * 8000000);
-
+    
     simple_lock();
     uart_puts("[Core ");
     uart_putc('0' + cpu);
@@ -110,15 +150,27 @@ void secondary_main(void) {
     uart_putc('0' + read_current_el());
     uart_puts("\n");
     simple_unlock();
-
+    
     while (1) { __asm__ volatile("wfe"); }
 }
 
+/******************************************************************************
+ * Function: main
+ * Description: Main entry point - executed by Core 0 after boot.S
+ * Parameters: None
+ * Returns: None (infinite loop)
+ * Responsibilities:
+ *   - Initialize spinlock
+ *   - Display boot diagnostics (EL, SP, registers)
+ *   - Start secondary cores (1, 2, 3) via PSCI
+ *   - Enter low-power idle loop
+ *****************************************************************************/
 void main(void) {
+    *LOCK_ADDR = 0;  // Initialize lock
+    
     uart_puts("\n=== Multi-Core Boot Diagnostics ===\n");
     uart_puts("[Core 0] Starting...\n");
-
-    // Verify boot state
+    
     uart_puts("[Core 0] Exception Level: ");
     uart_putc('0' + read_current_el());
     uart_puts("\n[Core 0] Stack Pointer: ");
@@ -128,24 +180,23 @@ void main(void) {
     uart_puts("\n[Core 0] SCTLR_EL1: ");
     uart_puthex(read_sctlr());
     uart_puts("\n\n");
-
-    // Start cores 1, 2, 3
+    
     for (int cpu = 1; cpu <= 3; cpu++) {
         uart_puts("[Core 0] Starting core ");
         uart_putc('0' + cpu);
         uart_puts("...");
-
+        
         long ret = psci_cpu_on(cpu, (unsigned long)_start);
         uart_puts(" PSCI ret: ");
         uart_puthex(ret);
         uart_puts("\n");
-
+        
         delay(3 * 8000000);
     }
-
+    
     uart_puts("\n[Core 0] Waiting for all cores...\n");
     delay(3 * 8000000);
     uart_puts("[Core 0] Done!\n");
-
+    
     while (1) { __asm__ volatile("wfe"); }
 }
