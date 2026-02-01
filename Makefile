@@ -5,7 +5,7 @@ AS = aarch64-none-elf-as
 LD = aarch64-none-elf-ld
 OBJCOPY = aarch64-none-elf-objcopy
 
-CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O2 -Wall
+CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -Wall -Iinclude
 ASFLAGS = -mcpu=cortex-a72
 
 ifeq ($(PLATFORM),qemuvirt)
@@ -18,22 +18,28 @@ else
     OUTPUT = build/kernel8.img
 endif
 
+OBJS = build/boot.o build/main.o build/uart0.o
+
 all: $(OUTPUT)
 
 build/boot.o: src/boot.S
 	@mkdir -p build
 	$(AS) $(ASFLAGS) -c $< -o $@
 
-build/main.o: src/main.c
+build/main.o: src/main.c include/uart/uart0.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/uart0.o: include/uart/uart0.c include/uart/uart0.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
 ifeq ($(PLATFORM),qemuvirt)
-$(OUTPUT): build/boot.o build/main.o
-	$(LD) -T $(LINKER_SCRIPT) build/boot.o build/main.o -o $@
+$(OUTPUT): $(OBJS)
+	$(LD) -T $(LINKER_SCRIPT) $(OBJS) -o $@
 else
-$(OUTPUT): build/boot.o build/main.o
-	$(LD) -T $(LINKER_SCRIPT) build/boot.o build/main.o -o $(OUTPUT_ELF)
+$(OUTPUT): $(OBJS)
+	$(LD) -T $(LINKER_SCRIPT) $(OBJS) -o $(OUTPUT_ELF)
 	$(OBJCOPY) -O binary $(OUTPUT_ELF) $@
 endif
 
