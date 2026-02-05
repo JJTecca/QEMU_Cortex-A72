@@ -4,17 +4,33 @@
 * Copyright (c) 2026 Maior Cristian
 *****************************************************************************/
 
+/**************************************************
+ * INCLUDE FILES
+ ***************************************************/
 #include "uart/uart0.h"
 
-// UART register addresses
-#define UART0_DR (*((volatile unsigned int*)0x09000000))
-#define UART0_FR (*((volatile unsigned int*)0x09000018))
+/**************************************************
+ * MACRO DEFINTIONS
+ ***************************************************/
+#define UART0_BASE 0x09000000
+#define UART_DR_OFFSET   0x00
+#define UART_FR_OFFSET   0x18
+
+/**************************************************
+ * GLOBAL VARIABLES
+ ***************************************************/
+volatile unsigned int* const uart0_dr = (volatile unsigned int*)(UART0_BASE + UART_DR_OFFSET);
+volatile unsigned int* const uart0_fr = (volatile unsigned int*)(UART0_BASE + UART_FR_OFFSET);
 
 static const char hex_chars[] = "0123456789ABCDEF";
 
+/**************************************************
+ * HELPER FUNCTIONS
+ ***************************************************/
 void uart_putc(char c) {
-    while (UART0_FR & (1 << 5));
-    UART0_DR = c;
+    // Wait while transmit FIFO is full (bit 5 of FR register)
+    while (*uart0_fr & (1 << 5));
+    *uart0_dr = c;
 }
 
 void uart_puts(const char* str) {
@@ -30,4 +46,3 @@ void uart_puthex(unsigned long val) {
         uart_putc(hex_chars[(val >> i) & 0xF]);
     }
 }
-
