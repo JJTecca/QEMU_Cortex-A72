@@ -11,19 +11,24 @@ SECTIONS
         KEEP(*(.text.boot))
         *(.text*)
     } > RAM
-
+    
     .rodata : {
         *(.rodata*)
     } > RAM
-
+    
     .data : {
+        __data_start = .;
         *(.data*)
+        __data_end = .;
     } > RAM
-
-    __bss_start = .;
+    
+    /* For RAM-only systems, load address = runtime address */
+    __data_load = LOADADDR(.data);
+    
     .bss : {
+        __bss_start = .;
         *(.bss*)
         *(COMMON)
+        __bss_end = .;
     } > RAM
-    __bss_end = .;
 }
