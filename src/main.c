@@ -23,6 +23,7 @@
  * Include headers
  *****************************************************************************/
 #include "uart/uart0.h"
+#include "ipc/ipc.h"
 
 /******************************************************************************
  * Macro Definition
@@ -151,7 +152,35 @@ void secondary_main(void) {
     uart_puts("\n");
     simple_unlock();
     
-    while (1) { __asm__ volatile("wfe"); }
+    //No more wait-for-event (wfe)
+    //Error caused : buffer overflow in makefile 
+    delay(20000000);
+    //Declare needed variables as unsigned int
+    unsigned int sender, msg_type, msg_data;
+    uart_puts("\n[Core 0] Checking for ACK responses...\n");
+    while (1) {
+        if (mailbox_receive(cpu, &sender, &msg_type, &msg_data) == 1) {
+            spinlock_acquire(SPINLOCK_ADDR);
+            uart_puts("[Core ");
+            uart_putc('0' + cpu);
+            uart_puts("] RX from Core ");
+            uart_putc('0' + sender);
+            uart_puts(" | Type: ");
+            uart_putc('0' + msg_type);
+            uart_puts(" | Data: ");
+            uart_puthex(msg_data);
+            uart_puts("\n");
+            spinlock_release(SPINLOCK_ADDR);
+            
+            // Send ACK back to sender
+            unsigned int ack_data = msg_data + (cpu << 16);
+            mailbox_send(sender, MSG_ACK, ack_data);
+            
+            mailbox_clear(cpu);
+        }
+        
+        __asm__ volatile("wfe");  // Wait for event
+    }
 }
 
 /******************************************************************************
@@ -166,37 +195,78 @@ void secondary_main(void) {
  *   - Enter low-power idle loop
  *****************************************************************************/
 void main(void) {
-    *LOCK_ADDR = 0;  // Initialize lock
+    spinlock_init();
     
-    uart_puts("\n=== Multi-Core Boot Diagnostics ===\n");
-    uart_puts("[Core 0] Starting...\n");
+    uart_puts("\n=== Multi-Core IPC Test ===\n");
+    uart_puts("[Core 0] Initializing mailboxes...\n");
     
-    uart_puts("[Core 0] Exception Level: ");
-    uart_putc('0' + read_current_el());
-    uart_puts("\n[Core 0] Stack Pointer: ");
-    uart_puthex(read_sp());
-    uart_puts("\n[Core 0] MPIDR_EL1: ");
-    uart_puthex(get_cpu_id());
-    uart_puts("\n[Core 0] SCTLR_EL1: ");
-    uart_puthex(read_sctlr());
-    uart_puts("\n\n");
-    
-    for (int cpu = 1; cpu <= 3; cpu++) {
-        uart_puts("[Core 0] Starting core ");
-        uart_putc('0' + cpu);
-        uart_puts("...");
-        
-        long ret = psci_cpu_on(cpu, (unsigned long)_start);
-        uart_puts(" PSCI ret: ");
-        uart_puthex(ret);
-        uart_puts("\n");
-        
-        delay(3 * 8000000);
+    // Initialize all mailboxes
+    for (int i = 0; i < 4; i++) {
+        mailbox_init(i);
     }
     
-    uart_puts("\n[Core 0] Waiting for all cores...\n");
-    delay(3 * 8000000);
-    uart_puts("[Core 0] Done!\n");
+    uart_puts("[Core 0] Starting secondary cores...\n\n");
+    
+    // Start cores 1, 2, 3
+    for (int cpu = 1; cpu <= 3; cpu++) {
+        long ret = psci_cpu_on(cpu, (unsigned long)_start);
+        uart_puts("[Core 0] Core ");
+        uart_putc('0' + cpu);
+        uart_puts(" PSCI: ");
+        uart_puthex(ret);
+        uart_puts("\n");
+        delay(3000000);
+    }
+    
+    delay(10000000);  // Wait for all cores to boot
+    
+    uart_puts("\n[Core 0] === Starting Communication Test ===\n\n");
+    
+    // Test 1: Send PING to each core
+    uart_puts("[Core 0] Test 1: Sending PING to all cores\n");
+    for (int dest = 1; dest <= 3; dest++) {
+        unsigned int test_data = 0x1000 + dest;
+        if (mailbox_send(dest, MSG_PING, test_data) == 0) {
+            uart_puts("[Core 0] -> Core ");
+            uart_putc('0' + dest);
+            uart_puts(" PING sent\n");
+        }
+        delay(2000000);
+    }
+    
+    // Wait for ACKs
+    delay(10000000);
+    
+    // Test 2: Send DATA messages
+    uart_puts("\n[Core 0] Test 2: Sending DATA messages\n");
+    for (int dest = 1; dest <= 3; dest++) {
+        unsigned int test_data = 0xDEAD0000 + (dest * 0x100);
+        mailbox_send(dest, MSG_DATA, test_data);
+        uart_puts("[Core 0] -> Core ");
+        uart_putc('0' + dest);
+        uart_puts(" DATA: ");
+        uart_puthex(test_data);
+        uart_puts("\n");
+        delay(2000000);
+    }
+    
+    // Process ACKs from secondary cores
+    delay(10000000);
+    unsigned int sender, msg_type, msg_data;
+    uart_puts("\n[Core 0] Checking for ACK responses...\n");
+    for (int i = 0; i < 10; i++) {
+        if (mailbox_receive(0, &sender, &msg_type, &msg_data) == 1) {
+            uart_puts("[Core 0] <- ACK from Core ");
+            uart_putc('0' + sender);
+            uart_puts(" | Data: ");
+            uart_puthex(msg_data);
+            uart_puts("\n");
+            mailbox_clear(0);
+        }
+        delay(3000000);
+    }
+    
+    uart_puts("\n[Core 0] === Communication Test Complete ===\n");
     
     while (1) { __asm__ volatile("wfe"); }
 }
