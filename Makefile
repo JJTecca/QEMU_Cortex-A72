@@ -9,16 +9,16 @@ CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -Wall -Iinclude
 ASFLAGS = -mcpu=cortex-a72
 
 ifeq ($(PLATFORM),qemuvirt)
-    CFLAGS += -DPLATFORM_QEMUVIRT
-    LINKER_SCRIPT = linker/linkerqemu.ld
-    OUTPUT = build/kernel.elf
+CFLAGS += -DPLATFORM_QEMUVIRT
+LINKER_SCRIPT = linker/linkerqemu.ld
+OUTPUT = build/kernel.elf
 else
-    LINKER_SCRIPT = linker/linkerrpi5.ld
-    OUTPUT_ELF = build/kernel.elf
-    OUTPUT = build/kernel8.img
+LINKER_SCRIPT = linker/linkerrpi5.ld
+OUTPUT_ELF = build/kernel.elf
+OUTPUT = build/kernel8.img
 endif
 
-OBJS = build/boot.o build/main.o build/uart0.o
+OBJS = build/boot.o build/main.o build/uart0.o build/ipc.o
 
 all: $(OUTPUT)
 
@@ -26,11 +26,15 @@ build/boot.o: src/boot.S
 	@mkdir -p build
 	$(AS) $(ASFLAGS) -c $< -o $@
 
-build/main.o: src/main.c include/uart/uart0.h
+build/main.o: src/main.c include/uart/uart0.h include/ipc/ipc.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
 build/uart0.o: include/uart/uart0.c include/uart/uart0.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/ipc.o: include/ipc/ipc.c include/ipc/ipc.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
