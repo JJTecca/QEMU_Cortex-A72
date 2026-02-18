@@ -29,7 +29,6 @@
  * Macro Definition
  *****************************************************************************/
 #define PSCI_CPU_ON 0xC4000003
-#define LOCK_ADDR ((volatile int*)0x40300000)
 
 /******************************************************************************
  * Function: delay
@@ -90,28 +89,6 @@ unsigned long read_sctlr(void) {
 }
 
 /******************************************************************************
- * Function: simple_lock
- * Description: Acquires a simple spinlock for UART synchronization
- * Parameters: None
- * Returns: None
- * Note: Spins until lock is available, then sets lock
- *****************************************************************************/
-void simple_lock(void) {
-    while (*LOCK_ADDR != 0);
-    *LOCK_ADDR = 1;
-}
-
-/******************************************************************************
- * Function: simple_unlock
- * Description: Releases the spinlock
- * Parameters: None
- * Returns: None
- *****************************************************************************/
-void simple_unlock(void) {
-    *LOCK_ADDR = 0;
-}
-
-/******************************************************************************
  * Function: psci_cpu_on
  * Description: Invokes PSCI CPU_ON function to start a secondary CPU core
  * Parameters: 
@@ -142,7 +119,7 @@ void secondary_main(void) {
     unsigned long cpu = get_cpu_id();
     delay(cpu * 8000000);
     
-    simple_lock();
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("[Core ");
     uart_putc('0' + cpu);
     uart_puts("] Online! SP: ");
@@ -150,14 +127,16 @@ void secondary_main(void) {
     uart_puts(" EL: ");
     uart_putc('0' + read_current_el());
     uart_puts("\n");
-    simple_unlock();
+    spinlock_release(SPINLOCK_ADDR);
     
     //No more wait-for-event (wfe)
     //Error caused : buffer overflow in makefile 
     delay(20000000);
     //Declare needed variables as unsigned int
     unsigned int sender, msg_type, msg_data;
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n[Core 0] Checking for ACK responses...\n");
+    spinlock_release(SPINLOCK_ADDR);
     while (1) {
         if (mailbox_receive(cpu, &sender, &msg_type, &msg_data) == 1) {
             spinlock_acquire(SPINLOCK_ADDR);
@@ -197,39 +176,53 @@ void secondary_main(void) {
 void main(void) {
     spinlock_init();
     
+    uart_init();
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n=== Multi-Core Boot Test ===\n");
     uart_puts("[Core 0] Initializing mailboxes...\n");
+    spinlock_release(SPINLOCK_ADDR);
     
     // Initialize all mailboxes
     for (int i = 0; i < 4; i++) {
         mailbox_init(i);
     }
     
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("[Core 0] Starting secondary cores...\n\n");
+    spinlock_release(SPINLOCK_ADDR);
     
     // Start cores 1, 2, 3
     for (int cpu = 1; cpu <= 3; cpu++) {
         long ret = psci_cpu_on(cpu, (unsigned long)_start);
+
+        spinlock_acquire(SPINLOCK_ADDR);
         uart_puts("[Core 0] Core ");
         uart_putc('0' + cpu);
         uart_puts(" PSCI: ");
         uart_puthex(ret);
         uart_puts("\n");
+        spinlock_release(SPINLOCK_ADDR);
         delay(3000000);
     }
     
     delay(10000000);  // Wait for all cores to boot
     
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n[Core 0] === Starting Communication Test ===\n\n");
+    spinlock_release(SPINLOCK_ADDR);
     
     // Test 1: Send PING to each core
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("[Core 0] Test 1: Sending PING to all cores\n");
+    spinlock_release(SPINLOCK_ADDR);
     for (int dest = 1; dest <= 3; dest++) {
         unsigned int test_data = 0x1000 + dest;
         if (mailbox_send(dest, MSG_PING, test_data) == 0) {
+            spinlock_acquire(SPINLOCK_ADDR);
             uart_puts("[Core 0] -> Core ");
             uart_putc('0' + dest);
             uart_puts(" PING sent\n");
+            spinlock_release(SPINLOCK_ADDR);
         }
         delay(2000000);
     }
@@ -238,35 +231,46 @@ void main(void) {
     delay(10000000);
     
     // Test 2: Send DATA messages
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n[Core 0] Test 2: Sending DATA messages\n");
+    spinlock_release(SPINLOCK_ADDR);
     for (int dest = 1; dest <= 3; dest++) {
         unsigned int test_data = 0xDEAD0000 + (dest * 0x100);
         mailbox_send(dest, MSG_DATA, test_data);
+
+        spinlock_acquire(SPINLOCK_ADDR);
         uart_puts("[Core 0] -> Core ");
         uart_putc('0' + dest);
         uart_puts(" DATA: ");
         uart_puthex(test_data);
         uart_puts("\n");
+        spinlock_release(SPINLOCK_ADDR);
         delay(2000000);
     }
     
     // Process ACKs from secondary cores
     delay(10000000);
     unsigned int sender, msg_type, msg_data;
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n[Core 0] Checking for ACK responses...\n");
+    spinlock_release(SPINLOCK_ADDR);
     for (int i = 0; i < 10; i++) {
         if (mailbox_receive(0, &sender, &msg_type, &msg_data) == 1) {
+            spinlock_acquire(SPINLOCK_ADDR);
             uart_puts("[Core 0] <- ACK from Core ");
             uart_putc('0' + sender);
             uart_puts(" | Data: ");
             uart_puthex(msg_data);
             uart_puts("\n");
+            spinlock_release(SPINLOCK_ADDR);
             mailbox_clear(0);
         }
         delay(3000000);
     }
     
+    spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n[Core 0] === Communication Test Complete ===\n");
+    spinlock_release(SPINLOCK_ADDR);
     
     while (1) { __asm__ volatile("wfe"); }
 }
