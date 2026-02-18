@@ -12,7 +12,11 @@
 /**************************************************
  * MACRO DEFINTIONS
  ***************************************************/
-#define UART0_BASE 0x09000000
+#ifdef TARGET_QEMU
+    #define UART0_BASE 0x09000000
+#elif defined(TARGET_RPI5)
+    #define UART0_BASE  0x40030000
+#endif
 #define UART_DR_OFFSET   0x00
 #define UART_FR_OFFSET   0x18
 
