@@ -9,10 +9,11 @@ CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -Wall -Iinclude
 ASFLAGS = -mcpu=cortex-a72
 
 ifeq ($(PLATFORM),qemuvirt)
-CFLAGS += -DPLATFORM_QEMUVIRT
+CFLAGS += -DTARGET_QEMU
 LINKER_SCRIPT = linker/linkerqemu.ld
 OUTPUT = build/kernel.elf
 else
+CFLAGS += -DTARGET_RPI5
 LINKER_SCRIPT = linker/linkerrpi5.ld
 OUTPUT_ELF = build/kernel.elf
 OUTPUT = build/kernel8.img

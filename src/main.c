@@ -197,7 +197,7 @@ void secondary_main(void) {
 void main(void) {
     spinlock_init();
     
-    uart_puts("\n=== Multi-Core IPC Test ===\n");
+    uart_puts("\n=== Multi-Core Boot Test ===\n");
     uart_puts("[Core 0] Initializing mailboxes...\n");
     
     // Initialize all mailboxes
