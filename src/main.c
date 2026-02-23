@@ -24,6 +24,7 @@
  *****************************************************************************/
 #include "uart/uart0.h"
 #include "ipc/ipc.h"
+#include "ringbuffer/ringbuf.h"
 
 /******************************************************************************
  * Macro Definition
@@ -118,50 +119,87 @@ extern void _start(void);
 void secondary_main(void) {
     unsigned long cpu = get_cpu_id();
     delay(cpu * 8000000);
-    
+
+    // All cores announce themselves (keep this)
     spinlock_acquire(SPINLOCK_ADDR);
-    uart_puts("[Core ");
-    uart_putc('0' + cpu);
-    uart_puts("] Online! SP: ");
-    uart_puthex(read_sp());
-    uart_puts(" EL: ");
-    uart_putc('0' + read_current_el());
+    uart_puts("[Core "); uart_putc('0' + cpu);
+    uart_puts("] Online! SP: "); uart_puthex(read_sp());
+    uart_puts(" EL: "); uart_putc('0' + read_current_el());
     uart_puts("\n");
     spinlock_release(SPINLOCK_ADDR);
-    
-    //No more wait-for-event (wfe)
-    //Error caused : buffer overflow in makefile 
-    delay(20000000);
-    //Declare needed variables as unsigned int
+
+    // ── Phase 1: existing mailbox test (unchanged) ──────────────────
+    // Cores 1,2,3 still respond to PING and DATA from Core 0
     unsigned int sender, msg_type, msg_data;
-    spinlock_acquire(SPINLOCK_ADDR);
-    uart_puts("\n[Core 0] Checking for ACK responses...\n");
-    spinlock_release(SPINLOCK_ADDR);
-    while (1) {
+    for (int i = 0; i < 10; i++) {
         if (mailbox_receive(cpu, &sender, &msg_type, &msg_data) == 1) {
             spinlock_acquire(SPINLOCK_ADDR);
-            uart_puts("[Core ");
-            uart_putc('0' + cpu);
-            uart_puts("] RX from Core ");
-            uart_putc('0' + sender);
-            uart_puts(" | Type: ");
-            uart_putc('0' + msg_type);
-            uart_puts(" | Data: ");
-            uart_puthex(msg_data);
+            uart_puts("[Core "); uart_putc('0' + cpu);
+            uart_puts("] RX from Core "); uart_putc('0' + sender);
+            uart_puts(" | Type: "); uart_putc('0' + msg_type);
+            uart_puts(" | Data: "); uart_puthex(msg_data);
             uart_puts("\n");
             spinlock_release(SPINLOCK_ADDR);
-            
-            // Send ACK back to sender
+
             unsigned int ack_data = msg_data + (cpu << 16);
             mailbox_send(sender, MSG_ACK, ack_data);
-            
             mailbox_clear(cpu);
         }
-        
-        __asm__ volatile("wfe");  // Wait for event
+        delay(3000000);
+    }
+
+    // ── Phase 2: ring buffer pipeline test ──────────────────────────
+    if (cpu == 1) {
+        // Core 1: Producer — push test bytes 'A' to 'J' into ring buffer
+        spinlock_acquire(SPINLOCK_ADDR);
+        uart_puts("[Core 1] Ring buffer test: pushing A-J...\n");
+        spinlock_release(SPINLOCK_ADDR);
+
+        for (unsigned char c = 'A'; c <= 'J'; c++) {
+            ring_buffer_put(UART_RX_BUFFER, c);
+            delay(500000);  // small gap so Core 2 can print between reads
+        }
+
+        // Signal Core 2 that data is ready
+        __asm__ volatile("sev" ::: "memory");
+
+        // Core 1 sleeps after test — later this becomes the UART RX loop
+        while (1) { __asm__ volatile("wfe"); }
+    }
+
+    if (cpu == 2) {
+        // Core 2: Consumer — read from ring buffer and print
+        spinlock_acquire(SPINLOCK_ADDR);
+        uart_puts("[Core 2] Ring buffer test: waiting for data...\n");
+        spinlock_release(SPINLOCK_ADDR);
+
+        unsigned char byte;
+        int received = 0;
+        while (received < 10) {
+            if (ring_buffer_get(UART_RX_BUFFER, &byte) == 0) {
+                spinlock_acquire(SPINLOCK_ADDR);
+                uart_puts("[Core 2] Got: ");
+                uart_putc(byte);
+                uart_puts("\n");
+                spinlock_release(SPINLOCK_ADDR);
+                received++;
+            } else {
+                __asm__ volatile("wfe");  // sleep until Core 1 fires SEV
+            }
+        }
+
+        spinlock_acquire(SPINLOCK_ADDR);
+        uart_puts("[Core 2] Ring buffer test COMPLETE\n");
+        spinlock_release(SPINLOCK_ADDR);
+
+        while (1) { __asm__ volatile("wfe"); }
+    }
+
+    if (cpu == 3) {
+        // Core 3: sleeping — reserved for SPI/I2C bus master later
+        while (1) { __asm__ volatile("wfe"); }
     }
 }
-
 /******************************************************************************
  * Function: main
  * Description: Main entry point - executed by Core 0 after boot.S
@@ -175,8 +213,9 @@ void secondary_main(void) {
  *****************************************************************************/
 void main(void) {
     spinlock_init();
-    
     uart_init();
+    ring_buffer_init(UART_RX_BUFFER);
+
     spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n=== Multi-Core Boot Test ===\n");
     uart_puts("[Core 0] Initializing mailboxes...\n");

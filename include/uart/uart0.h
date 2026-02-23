@@ -7,6 +7,7 @@
 /**************************************************
  * INCLUDE FILES
  ***************************************************/
+#include <stdbool.h>
 /**************************************************
  * MACRO DEFINTIONS
  ***************************************************/
@@ -20,6 +21,8 @@ void uart_init(void);
 void uart_putc(char c);
 void uart_puts(const char *s);
 void uart_puthex(unsigned long value);
+bool uart_hasData(void);
+unsigned uart_getc(void);
 
 #endif
 

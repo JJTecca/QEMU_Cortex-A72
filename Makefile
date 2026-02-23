@@ -19,7 +19,7 @@ OUTPUT_ELF = build/kernel.elf
 OUTPUT = build/kernel8.img
 endif
 
-OBJS = build/boot.o build/main.o build/uart0.o build/ipc.o
+OBJS = build/boot.o build/main.o build/uart0.o build/ipc.o build/ringbuf.o
 
 all: $(OUTPUT)
 
@@ -36,6 +36,10 @@ build/uart0.o: include/uart/uart0.c include/uart/uart0.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 build/ipc.o: include/ipc/ipc.c include/ipc/ipc.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/ringbuf.o: include/ringbuffer/ringbuf.c include/ringbuffer/ringbuf.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 

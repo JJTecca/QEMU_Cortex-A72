@@ -107,3 +107,15 @@ void uart_puthex(unsigned long val) {
         uart_putc(hex_chars[(val >> i) & 0xF]);
     }
 }
+
+bool uart_has_data(void) {
+    // If flag register is up then buffer is empty
+    // Bit 4 = RX (Receive X) -> 0 then buffer has data
+    return (*uart0_fr & (1 << 4)) == 0;
+}
+
+unsigned uart_getc(void) {
+    // Wait for the uart to be empty
+    while(! uart_has_data());
+    return (unsigned char)(*uart0_dr & 0xFF);
+}
