@@ -109,13 +109,14 @@ void uart_puthex(unsigned long val) {
 }
 
 bool uart_has_data(void) {
-    // If flag register is up then buffer is empty
-    // Bit 4 = RX (Receive X) -> 0 then buffer has data
+    // RXFE (Receive FIFO Empty) bit 4: 0 = data available, 1 = empty
     return (*uart0_fr & (1 << 4)) == 0;
 }
 
+
 unsigned uart_getc(void) {
-    // Wait for the uart to be empty
-    while(! uart_has_data());
+    // FR = 0 -> FIFO has data => while(true) => "WAIT"
+    // i.e if bit 4 is up => FR = 1 => empty => while(false)
+    while(! uart_has_data()); // Empty means FR = 1
     return (unsigned char)(*uart0_dr & 0xFF);
 }
