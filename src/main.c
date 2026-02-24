@@ -128,8 +128,7 @@ void secondary_main(void) {
     uart_puts("\n");
     spinlock_release(SPINLOCK_ADDR);
 
-    // ── Phase 1: existing mailbox test (unchanged) ──────────────────
-    // Cores 1,2,3 still respond to PING and DATA from Core 0
+    // Testing UART0 Core Communication
     unsigned int sender, msg_type, msg_data;
     for (int i = 0; i < 10; i++) {
         if (mailbox_receive(cpu, &sender, &msg_type, &msg_data) == 1) {
@@ -148,7 +147,7 @@ void secondary_main(void) {
         delay(3000000);
     }
 
-    // ── Phase 2: ring buffer pipeline test ──────────────────────────
+    // Testing with circular ring buffer 0 delay
     if (cpu == 1) {
         // Core 1: Producer — push test bytes 'A' to 'J' into ring buffer
         spinlock_acquire(SPINLOCK_ADDR);
@@ -157,7 +156,6 @@ void secondary_main(void) {
 
         for (unsigned char c = 'A'; c <= 'J'; c++) {
             ring_buffer_put(UART_RX_BUFFER, c);
-            delay(500000);  // small gap so Core 2 can print between reads
         }
 
         // Signal Core 2 that data is ready
@@ -212,6 +210,11 @@ void secondary_main(void) {
  *   - Enter low-power idle loop
  *****************************************************************************/
 void main(void) {
+    /*********************************
+     * Spinlock Init -> move between cores
+     * Uart Init -> RX TX transm no conf needed QEMU 
+     * Ring Buffer Init -> Inter Core Messaging 
+     *******************************/
     spinlock_init();
     uart_init();
     ring_buffer_init(UART_RX_BUFFER);
