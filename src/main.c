@@ -158,6 +158,13 @@ void secondary_main(void) {
             ring_buffer_put(UART_RX_BUFFER, c);
         }
 
+        /* Simulating real time keyboard */
+        while (1) {
+            unsigned char c = (unsigned char)uart_getc();
+            ring_buffer_put(UART_RX_BUFFER, c);
+            __asm__ volatile("sev" ::: "memory");
+        }
+
         // Signal Core 2 that data is ready
         __asm__ volatile("sev" ::: "memory");
 
@@ -190,7 +197,16 @@ void secondary_main(void) {
         uart_puts("[Core 2] Ring buffer test COMPLETE\n");
         spinlock_release(SPINLOCK_ADDR);
 
-        while (1) { __asm__ volatile("wfe"); }
+        /* Aquire the written keyboard char */
+        while (1) {
+            if (ring_buffer_get(UART_RX_BUFFER, &byte) == 0) {
+                spinlock_acquire(SPINLOCK_ADDR);
+                uart_putc(byte);
+                spinlock_release(SPINLOCK_ADDR);
+            } else { __asm__ volatile("wfe"); }
+        }
+
+        while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
     }
 
     if (cpu == 3) {
@@ -309,10 +325,10 @@ void main(void) {
         }
         delay(3000000);
     }
-    
+
     spinlock_acquire(SPINLOCK_ADDR);
-    uart_puts("\n[Core 0] === Communication Test Complete ===\n");
+    uart_puts("\n[Test 3] UART RX live - Keyboard Simulation:\n");
     spinlock_release(SPINLOCK_ADDR);
-    
-    while (1) { __asm__ volatile("wfe"); }
+
+    while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
 }
