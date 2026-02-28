@@ -25,6 +25,7 @@
 #include "uart/uart0.h"
 #include "ipc/ipc.h"
 #include "ringbuffer/ringbuf.h"
+#include "tests.h"
 
 /******************************************************************************
  * Macro Definition
@@ -269,66 +270,7 @@ void main(void) {
     uart_puts("\n[Core 0] === Starting Communication Test ===\n\n");
     spinlock_release(SPINLOCK_ADDR);
     
-    // Test 1: Send PING to each core
-    spinlock_acquire(SPINLOCK_ADDR);
-    uart_puts("[Core 0] Test 1: Sending PING to all cores\n");
-    spinlock_release(SPINLOCK_ADDR);
-    for (int dest = 1; dest <= 3; dest++) {
-        unsigned int test_data = 0x1000 + dest;
-        if (mailbox_send(dest, MSG_PING, test_data) == 0) {
-            spinlock_acquire(SPINLOCK_ADDR);
-            uart_puts("[Core 0] -> Core ");
-            uart_putc('0' + dest);
-            uart_puts(" PING sent\n");
-            spinlock_release(SPINLOCK_ADDR);
-        }
-        delay(2000000);
-    }
-    
-    // Wait for ACKs
-    delay(10000000);
-    
-    // Test 2: Send DATA messages
-    spinlock_acquire(SPINLOCK_ADDR);
-    uart_puts("\n[Core 0] Test 2: Sending DATA messages\n");
-    spinlock_release(SPINLOCK_ADDR);
-    for (int dest = 1; dest <= 3; dest++) {
-        unsigned int test_data = 0xDEAD0000 + (dest * 0x100);
-        mailbox_send(dest, MSG_DATA, test_data);
-
-        spinlock_acquire(SPINLOCK_ADDR);
-        uart_puts("[Core 0] -> Core ");
-        uart_putc('0' + dest);
-        uart_puts(" DATA: ");
-        uart_puthex(test_data);
-        uart_puts("\n");
-        spinlock_release(SPINLOCK_ADDR);
-        delay(2000000);
-    }
-    
-    // Process ACKs from secondary cores
-    delay(10000000);
-    unsigned int sender, msg_type, msg_data;
-    spinlock_acquire(SPINLOCK_ADDR);
-    uart_puts("\n[Core 0] Checking for ACK responses...\n");
-    spinlock_release(SPINLOCK_ADDR);
-    for (int i = 0; i < 10; i++) {
-        if (mailbox_receive(0, &sender, &msg_type, &msg_data) == 1) {
-            spinlock_acquire(SPINLOCK_ADDR);
-            uart_puts("[Core 0] <- ACK from Core ");
-            uart_putc('0' + sender);
-            uart_puts(" | Data: ");
-            uart_puthex(msg_data);
-            uart_puts("\n");
-            spinlock_release(SPINLOCK_ADDR);
-            mailbox_clear(0);
-        }
-        delay(3000000);
-    }
-
-    spinlock_acquire(SPINLOCK_ADDR);
-    uart_puts("\n[Test 3] UART RX live - Keyboard Simulation:\n");
-    spinlock_release(SPINLOCK_ADDR);
+    run_all_tests();
 
     while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
 }
