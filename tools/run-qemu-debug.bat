@@ -34,7 +34,7 @@ echo Building Multi-Core Kernel...
 echo ============================================
 make PLATFORM=qemuvirt
 
-if not exist "build\kernel.elf" (
+if not exist "build/kernel.elf" (
     echo.
     echo ============================================
     echo BUILD FAILED!
@@ -51,7 +51,7 @@ echo.
 echo QEMU is waiting for GDB connection on port 1234
 echo.
 echo In another terminal, run:
-echo   aarch64-none-elf-gdb build\kernel.elf
+echo   aarch64-none-elf-gdb build/kernel.elf
 echo   (gdb) target remote localhost:1234
 echo   (gdb) break _start
 echo   (gdb) continue
@@ -62,7 +62,7 @@ echo Press Ctrl-C to stop QEMU when done debugging
 echo.
 
 REM Debug mode: -S pauses at start, -s opens GDB server on port 1234
-qemu-system-aarch64 -M virt -cpu cortex-a72 -smp 4 -m 2048M -nographic -kernel build\kernel.elf -serial mon:stdio -S -s
+qemu-system-aarch64 -M virt -cpu cortex-a72 -smp 4 -m 2048M -nographic -kernel build/kernel.elf -serial mon:stdio -S -s
 
 echo.
 echo ============================================

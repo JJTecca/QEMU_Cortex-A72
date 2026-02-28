@@ -5,7 +5,7 @@ AS = aarch64-none-elf-as
 LD = aarch64-none-elf-ld
 OBJCOPY = aarch64-none-elf-objcopy
 
-CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -Wall -Iinclude -Itests
+CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -g -Wall -Iinclude -Itests
 ASFLAGS = -mcpu=cortex-a72
 
 ifeq ($(PLATFORM),qemuvirt)
