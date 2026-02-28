@@ -5,7 +5,7 @@ AS = aarch64-none-elf-as
 LD = aarch64-none-elf-ld
 OBJCOPY = aarch64-none-elf-objcopy
 
-CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -Wall -Iinclude
+CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -Wall -Iinclude -Itests
 ASFLAGS = -mcpu=cortex-a72
 
 ifeq ($(PLATFORM),qemuvirt)
@@ -19,7 +19,7 @@ OUTPUT_ELF = build/kernel.elf
 OUTPUT = build/kernel8.img
 endif
 
-OBJS = build/boot.o build/main.o build/uart0.o build/ipc.o build/ringbuf.o
+OBJS = build/boot.o build/main.o build/uart0.o build/ipc.o build/ringbuf.o build/tests.o
 
 all: $(OUTPUT)
 
@@ -40,6 +40,10 @@ build/ipc.o: include/ipc/ipc.c include/ipc/ipc.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 build/ringbuf.o: include/ringbuffer/ringbuf.c include/ringbuffer/ringbuf.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/tests.o: tests/tests.c tests/tests.h include/uart/uart0.h include/ipc/ipc.h include/ringbuffer/ringbuf.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
