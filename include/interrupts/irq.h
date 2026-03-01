@@ -6,6 +6,9 @@
  * Copyright (c) 2026 Maior Cristian
  ******************************************************************************/
 #pragma once
+/**************************************************
+ * INCLUDE FILES
+ ***************************************************/
 #include <stdint.h>
 
 /* Exception frame — mirrors save_regs in vector.S (EXC_FRAME_SIZE = 0x110) */
@@ -16,6 +19,9 @@ typedef struct {
     uint64_t spsr_el1;   /* SPSR_EL1 offset 0x108         */
 } exc_frame_t;
 
+ /**************************************************
+ * MACRO DEFINTIONS
+ ***************************************************/
 /* Exception type IDs (mirror .set values in vector.S) */
 #define EXC_SP0_SYNC   0x01u
 #define EXC_SP0_IRQ    0x02u
@@ -29,14 +35,20 @@ typedef struct {
 #define EXC_A64_IRQ    0x22u
 #define EXC_A64_FIQ    0x23u
 #define EXC_A64_SERR   0x24u
-
 /* GIC INTID constants for this project */
 #define IRQ_ID_TIMER   30u   /* ARM generic timer PPI → INTID 30 */
 #define IRQ_ID_UART0   33u   /* PL011 UART0 SPI #1   → INTID 33 */
-
 #define IRQ_MAX_HANDLERS 64u
+
+/**************************************************
+ * GLOBAL VARIABLES
+ ***************************************************/
 typedef void (*irq_handler_t)(uint32_t irq_id);
 
+
+/**************************************************
+ * HELPER FUNCTIONS
+ ***************************************************/
 void irq_init(void);
 void irq_register_handler(uint32_t irq_id, irq_handler_t handler);
 void irq_enable(void);

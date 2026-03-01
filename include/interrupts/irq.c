@@ -3,8 +3,15 @@
  * Description: Interrupt Request Controller
  * Copyright (c) 2026 Maior Cristian
  ******************************************************************************/
-#include "interrupts/irq.h"
 
+/**************************************************
+ * INCLUDE FILES
+ ***************************************************/
+ #include "interrupts/irq.h"
+
+ /**************************************************
+ * MACRO DEFINTIONS
+ ***************************************************/
 #define GICD_BASE  0x08000000UL
 #define GICC_BASE  0x08010000UL
 
@@ -21,8 +28,20 @@
 #define GICC_IAR   (*(volatile uint32_t *)(GICC_BASE + 0x00C))
 #define GICC_EOIR  (*(volatile uint32_t *)(GICC_BASE + 0x010))
 
+/**************************************************
+ * GLOBAL VARIABLES
+ ***************************************************/
 static irq_handler_t irq_table[IRQ_MAX_HANDLERS];
 
+/**************************************************
+ * HELPER FUNCTIONS
+ ***************************************************/
+
+ /******************************************************************************
+* Function: irq_init
+* Description: Initialize the GICv2 distributor and CPU interface.
+*              Masks all SPIs, sets medium priority on all INTIDs.
+*****************************************************************************/
 void irq_init(void)
 {
     uint32_t i;
@@ -41,6 +60,11 @@ void irq_init(void)
     GICC_CTLR = 1u;                             /* enable CPU interface   */
 }
 
+/******************************************************************************
+* Function: irq_register_handler
+* Description: Register a C handler for a specific GIC INTID and unmask
+*              that interrupt in the distributor ISENABLER register.
+*****************************************************************************/
 void irq_register_handler(uint32_t irq_id, irq_handler_t handler)
 {
     if (irq_id >= IRQ_MAX_HANDLERS) return;
@@ -48,9 +72,25 @@ void irq_register_handler(uint32_t irq_id, irq_handler_t handler)
     GICD_ISENABLER(irq_id / 32u) = (1u << (irq_id % 32u));
 }
 
+/******************************************************************************
+* Function: irq_enable
+* Description: Unmask IRQ exceptions at EL1 by clearing DAIF.I bit (bit 1)
+*****************************************************************************/
 void irq_enable(void)  { __asm__ volatile("msr daifclr, #2" ::: "memory"); }
+/******************************************************************************
+* Function: irq_disable
+* Description: Mask IRQ exceptions at EL1 by setting DAIF.I bit (bit 1)
+*****************************************************************************/
 void irq_disable(void) { __asm__ volatile("msr daifset, #2" ::: "memory"); }
 
+/******************************************************************************
+* Function: common_trap_handler
+* Description: Central exception dispatcher called from every vector stub
+*              in vector.S. For IRQ exceptions, reads GICC_IAR to obtain
+*              the INTID, dispatches to the registered handler, then writes
+*              GICC_EOIR to signal end-of-interrupt.
+*              All other exception types halt the core.
+*****************************************************************************/
 void common_trap_handler(uint64_t exc_id, exc_frame_t *frame)
 {
     (void)frame;
