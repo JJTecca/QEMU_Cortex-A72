@@ -237,10 +237,11 @@ void secondary_main(void) {
  * Parameters: None
  * Returns: None (infinite loop)
  * Responsibilities:
- *   - Initialize spinlock
+ *   - Initialize spinlock, uart, ringbuffer
  *   - Display boot diagnostics (EL, SP, registers)
  *   - Start secondary cores (1, 2, 3) via PSCI
- *   - Enter low-power idle loop
+ *   - Run test suites
+ *   - Initialize the irq module
  *****************************************************************************/
 void main(void) {
     /*********************************
