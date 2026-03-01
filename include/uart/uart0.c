@@ -113,6 +113,13 @@ bool uart_has_data(void) {
     return (*uart0_fr & (1 << 4)) == 0;
 }
 
+const char* uart_special_chars(unsigned char *receiveChar) {
+    switch (*receiveChar) {
+        case 0x03: return "Exit";  // Ctrl+C (ETX)
+        case 0x1B: return "Exit";  // ESC
+        default:   return 0;    // normal char, do nothing
+    }
+}
 
 unsigned uart_getc(void) {
     // FR = 0 -> FIFO has data => while(true) => "WAIT"

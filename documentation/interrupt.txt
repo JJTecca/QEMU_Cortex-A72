@@ -1,0 +1,28 @@
+Core 0 (boot core):
+  1. boot.S: existing init (stack, BSS clear)
+  2. main(): gic_init()           ← GICD + GICC for core 0
+  3. main(): install vectors       ← msr VBAR_EL1
+  4. main(): uart_init()           ← existing PL011 setup
+  5. main(): uart_enable_rx_interrupt()
+  6. main(): gic_enable_irq(33)    ← UART0 SPI
+  7. main(): gic_enable_irq(30)    ← Physical timer
+  8. main(): unmask IRQ in DAIF    ← msr daifclr, #2
+  9. main(): wake cores 1-3 via PSCI
+
+Core 1 (wakes via PSCI):
+  1. Install VBAR_EL1 (same vectors table)
+  2. Enable own GICC (CTLR=1, PMR=0xFF)
+  3. Unmask IRQ in DAIF
+  4. Enter WFI loop — UART RX ISR does the work
+
+Core 2 (wakes via PSCI):
+  1. Install VBAR_EL1
+  2. Enable own GICC
+  3. Unmask IRQ in DAIF
+  4. Start timer for MODBUS frame timing
+  5. Enter WFI loop — timer ISR manages MODBUS state machine
+
+Core 3 (reserved for SPI/I2C):
+  1. Install VBAR_EL1
+  2. Enable own GICC
+  3. Can remain in WFE until SPI/I2C drivers are ready

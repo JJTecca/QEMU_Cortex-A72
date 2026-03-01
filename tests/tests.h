@@ -4,7 +4,6 @@
  *
  * Copyright (c) 2026
  * Author: Maior Cristian
- * License: MIT / Proprietary (Bachelor Thesis Project)
  *****************************************************************************/
 
 #ifndef TESTS_H

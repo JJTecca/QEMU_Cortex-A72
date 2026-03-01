@@ -15,6 +15,17 @@ _start:
     mul     x2, x0, x2
     add     x1, x1, x2
     mov     sp, x1
+
+    // Install exception vector table on all cores
+    ldr     x0, =vectors        // 2KB-aligned address (set by linker)
+    msr     vbar_el1, x0        // write to Vector Base Address Register
+    isb                         // context sync — must complete before any
+
+    // Get CPU ID again for branching
+    mrs     x0, mpidr_el1
+    and     x0, x0, #0xFF
+
+    cbnz    x0, secondary_cpu
     
     // Get CPU ID again for branching
     mrs     x0, mpidr_el1
