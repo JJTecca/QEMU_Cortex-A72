@@ -22,6 +22,7 @@ void uart_putc(char c);
 void uart_puts(const char *s);
 void uart_puthex(unsigned long value);
 bool uart_hasData(void);
+const char* uart_special_chars(unsigned char*);
 unsigned uart_getc(void);
 
 #endif
