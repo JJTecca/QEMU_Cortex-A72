@@ -19,11 +19,17 @@ OUTPUT_ELF = build/kernel.elf
 OUTPUT = build/kernel8.img
 endif
 
-OBJS = build/boot.o build/main.o build/uart0.o build/ipc.o build/ringbuf.o build/tests.o
+OBJS = build/boot.o build/vector.o build/irq.o build/main.o \
+       build/uart0.o build/ipc.o build/ringbuf.o build/tests.o
+# to skip one line we need to have backslash \
 
 all: $(OUTPUT)
 
 build/boot.o: src/boot.S
+	@mkdir -p build
+	$(AS) $(ASFLAGS) -c $< -o $@
+
+build/vector.o: src/vector.S
 	@mkdir -p build
 	$(AS) $(ASFLAGS) -c $< -o $@
 
@@ -44,6 +50,10 @@ build/ringbuf.o: include/ringbuffer/ringbuf.c include/ringbuffer/ringbuf.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 build/tests.o: tests/tests.c tests/tests.h include/uart/uart0.h include/ipc/ipc.h include/ringbuffer/ringbuf.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/irq.o: include/interrupts/irq.c include/interrupts/irq.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 

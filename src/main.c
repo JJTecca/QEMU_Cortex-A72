@@ -25,6 +25,7 @@
 #include "uart/uart0.h"
 #include "ipc/ipc.h"
 #include "ringbuffer/ringbuf.h"
+#include "interrupts/irq.h"
 #include "tests.h"
 
 /******************************************************************************
@@ -107,6 +108,9 @@ long psci_cpu_on(unsigned long cpu, unsigned long entry) {
     __asm__ volatile("hvc #0" : "+r"(x0) : "r"(x1), "r"(x2), "r"(x3) : "memory");
     return x0;
 }
+
+static void uart0_irq_handler(uint32_t irq_id) { (void)irq_id; /* read UART DR */ }
+static void timer_irq_handler(uint32_t irq_id) { (void)irq_id; /* clear CNTV_CTL */ }
 
 /******************************************************************************
  * Function: secondary_main
@@ -201,10 +205,22 @@ void secondary_main(void) {
         /* Aquire the written keyboard char */
         while (1) {
             if (ring_buffer_get(UART_RX_BUFFER, &byte) == 0) {
+
+                /* Halt the system when ctr+c arrives */
+                if (uart_special_chars(&byte)) {
+                    spinlock_acquire(SPINLOCK_ADDR);
+                    uart_puts("\r\n[ERROR] Keyboard locked. System halted.\r\n");
+                    spinlock_release(SPINLOCK_ADDR);
+                    while (1) { __asm__ volatile("wfe"); } // permanent sleep
+                }
+
                 spinlock_acquire(SPINLOCK_ADDR);
                 uart_putc(byte);
                 spinlock_release(SPINLOCK_ADDR);
-            } else { __asm__ volatile("wfe"); }
+
+            } else {
+                __asm__ volatile("wfe");
+            }
         }
 
         while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
@@ -271,6 +287,11 @@ void main(void) {
     spinlock_release(SPINLOCK_ADDR);
     
     run_all_tests();
+
+    irq_init();
+    irq_register_handler(IRQ_ID_UART0, uart0_irq_handler);
+    irq_register_handler(IRQ_ID_TIMER, timer_irq_handler);
+    irq_enable();
 
     while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
 }

@@ -11,6 +11,13 @@ SECTIONS
         KEEP(*(.text.boot))
         *(.text*)
     } > RAM
+
+    .text : {
+        KEEP(*(.text.boot))
+        . = ALIGN(0x800);          /* VBAR_EL1[10:0] must be zero → 2 KB boundary */
+        KEEP(*(.text.vectors))     /* IVT pinned at 0x40100800                     */
+        *(.text*)
+    } > RAM
     
     .rodata : {
         *(.rodata*)
