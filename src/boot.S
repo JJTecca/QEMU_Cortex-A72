@@ -19,7 +19,7 @@ _start:
     // Install exception vector table on all cores
     ldr     x0, =vectors        // 2KB-aligned address (set by linker)
     msr     vbar_el1, x0        // write to Vector Base Address Register
-    isb                         // context sync — must complete before any
+    isb                         // context sync
 
     // Get CPU ID again for branching
     mrs     x0, mpidr_el1

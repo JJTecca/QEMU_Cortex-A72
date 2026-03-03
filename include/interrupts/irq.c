@@ -95,17 +95,16 @@ void common_trap_handler(uint64_t exc_id, exc_frame_t *frame)
 {
     (void)frame;
     switch (exc_id) {
-    case EXC_SPX_IRQ:
-    case EXC_A64_IRQ: {
-        uint32_t iar    = GICC_IAR;
-        uint32_t irq_id = iar & 0x3FFu;          /* INTID in bits [9:0]    */
-        if (irq_id == 1023u) break;               /* spurious — ignore      */
-        if (irq_id < IRQ_MAX_HANDLERS && irq_table[irq_id])
-            irq_table[irq_id](irq_id);
-        GICC_EOIR = iar;                          /* end-of-interrupt       */
-        break;
+        case EXC_SPX_IRQ:
+        case EXC_A64_IRQ: {
+            uint32_t iar    = GICC_IAR;
+            uint32_t irq_id = iar & 0x3FFu;          /* INTID in bits [9:0]    */
+            if (irq_id == 1023u) break;               /* spurious — ignore      */
+            if (irq_id < IRQ_MAX_HANDLERS && irq_table[irq_id])
+                irq_table[irq_id](irq_id);
+            GICC_EOIR = iar;                          /* end-of-interrupt       */
+            break;
     }
-    default:
-        for (;;) __asm__ volatile("wfe");         /* fatal — halt core      */
+        default: for (;;) __asm__ volatile("wfe");         /* fatal — halt core      */
     }
 }
