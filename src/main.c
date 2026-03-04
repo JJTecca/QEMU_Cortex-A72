@@ -26,7 +26,8 @@
 #include "ipc/ipc.h"
 #include "ringbuffer/ringbuf.h"
 #include "interrupts/irq.h"
-#include "tests.h"
+#include "trivial/tests.h"
+#include "interrupt/timer_tests.h"
 
 /******************************************************************************
  * Macro Definition
@@ -108,9 +109,6 @@ long psci_cpu_on(unsigned long cpu, unsigned long entry) {
     __asm__ volatile("hvc #0" : "+r"(x0) : "r"(x1), "r"(x2), "r"(x3) : "memory");
     return x0;
 }
-
-static void uart0_irq_handler(uint32_t irq_id) { (void)irq_id; /* read UART DR */ }
-static void timer_irq_handler(uint32_t irq_id) { (void)irq_id; /* clear CNTV_CTL */ }
 
 /******************************************************************************
  * Function: secondary_main
@@ -282,17 +280,18 @@ void main(void) {
     }
     
     delay(10000000);  // Wait for all cores to boot
-    
+
+    spinlock_acquire(SPINLOCK_ADDR);
+    uart_puts("\n[Core 0] === Starting Interrupt Test ===\n\n");
+    spinlock_release(SPINLOCK_ADDR);
+
+    interrupt_tests_init();
+
     spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n[Core 0] === Starting Communication Test ===\n\n");
     spinlock_release(SPINLOCK_ADDR);
     
     run_all_tests();
-
-    irq_init();
-    irq_register_handler(IRQ_ID_UART0, uart0_irq_handler);
-    irq_register_handler(IRQ_ID_TIMER, timer_irq_handler);
-    irq_enable();
 
     while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
 }
