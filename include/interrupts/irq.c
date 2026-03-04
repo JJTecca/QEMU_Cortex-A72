@@ -97,7 +97,7 @@ void common_trap_handler(uint64_t exc_id, exc_frame_t *frame)
     switch (exc_id) {
         case EXC_SPX_IRQ:
         case EXC_A64_IRQ: {
-            uint32_t iar    = GICC_IAR;
+            uint32_t iar    = GICC_IAR; //Interrupt Ack Reg
             uint32_t irq_id = iar & 0x3FFu;          /* INTID in bits [9:0]    */
             if (irq_id == 1023u) break;               /* spurious — ignore      */
             if (irq_id < IRQ_MAX_HANDLERS && irq_table[irq_id])

@@ -20,7 +20,7 @@ OUTPUT = build/kernel8.img
 endif
 
 OBJS = build/boot.o build/vector.o build/irq.o build/main.o \
-       build/uart0.o build/ipc.o build/ringbuf.o build/tests.o
+       build/uart0.o build/ipc.o build/ringbuf.o build/tests.o build/timer_tests.o
 # to skip one line we need to have backslash \
 
 all: $(OUTPUT)
@@ -49,7 +49,13 @@ build/ringbuf.o: include/ringbuffer/ringbuf.c include/ringbuffer/ringbuf.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
-build/tests.o: tests/tests.c tests/tests.h include/uart/uart0.h include/ipc/ipc.h include/ringbuffer/ringbuf.h
+build/tests.o: tests/trivial/tests.c tests/trivial/tests.h  \
+				include/uart/uart0.h include/ipc/ipc.h include/ringbuffer/ringbuf.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/timer_tests.o: tests/interrupt/timer_tests.c tests/interrupt/timer_tests.h \
+				include/uart/uart0.h include/ipc/ipc.h include/ringbuffer/ringbuf.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
