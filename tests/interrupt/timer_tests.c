@@ -46,8 +46,10 @@ static void timer_irq_handler(uint32_t irq_id)
     uart_putc((unsigned char)(u_timerLeft--));
     uart_puts("\n");
 
-    if(u_timerLeft == 0) {
-        __asm__ volatile("msr cntp_ctl_el0,  %0" :: "r"(1UL));
+    if (u_timerLeft <= '0') {
+        __asm__ volatile("msr cntp_ctl_el0, %0" :: "r"(0UL));
+        u_timerLeft = 0;
+        return;
     }
 
     uint64_t freq;

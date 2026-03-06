@@ -113,10 +113,11 @@ bool uart_has_data(void) {
     return (*uart0_fr & (1 << 4)) == 0;
 }
 
-const char* uart_special_chars(unsigned char *receiveChar) {
+const unsigned int uart_special_chars(unsigned char *receiveChar) {
     switch (*receiveChar) {
-        case 0x03: return "Exit";  // Ctrl+C (ETX)
-        case 0x1B: return "Exit";  // ESC
+        case 0x03: return 0xFFFF0003;  // Ctrl+C (ETX)
+        case 0x1B: return 0xFFFF001B;  // ESC
+        case 0x0D: return 0xFFFF000D;  // Enter
         default:   return 0;    // normal char, do nothing
     }
 }
@@ -126,4 +127,11 @@ unsigned uart_getc(void) {
     // i.e if bit 4 is up => FR = 1 => empty => while(false)
     while(! uart_has_data()); // Empty means FR = 1
     return (unsigned char)(*uart0_dr & 0xFF);
+}
+
+key_event_t uart_key_event(unsigned char byte)
+{
+    if (byte == 0x03)                    return KEY_CTRL_C;
+    if (byte == 0x0D || byte == 0x0A)   return KEY_ENTER;
+    return KEY_NONE;
 }

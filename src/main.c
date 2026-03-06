@@ -205,15 +205,20 @@ void secondary_main(void) {
             if (ring_buffer_get(UART_RX_BUFFER, &byte) == 0) {
 
                 /* Halt the system when ctr+c arrives */
-                if (uart_special_chars(&byte)) {
-                    spinlock_acquire(SPINLOCK_ADDR);
-                    uart_puts("\r\n[ERROR] Keyboard locked. System halted.\r\n");
-                    spinlock_release(SPINLOCK_ADDR);
-                    while (1) { __asm__ volatile("wfe"); } // permanent sleep
-                }
-
                 spinlock_acquire(SPINLOCK_ADDR);
-                uart_putc(byte);
+                switch (uart_key_event(byte)) {
+                    case KEY_CTRL_C:
+                        uart_puts("\r\n[ERROR] Keyboard locked. System halted.\r\n");
+                        while (1) { __asm__ volatile("wfe"); }
+                        break;
+                    case KEY_ENTER:
+                        uart_puts("\r\n");
+                        break;
+                    case KEY_NONE:
+                    default:
+                        uart_putc(byte);
+                        break;
+                }
                 spinlock_release(SPINLOCK_ADDR);
 
             } else {
