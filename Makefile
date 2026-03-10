@@ -20,7 +20,9 @@ OUTPUT = build/kernel8.img
 endif
 
 OBJS = build/boot.o build/vector.o build/irq.o build/main.o \
-       build/uart0.o build/ipc.o build/ringbuf.o build/tests.o build/timer_tests.o
+	   build/uart0.o build/ipc.o build/ringbuf.o build/tests.o build/timer_tests.o \
+	   build/mmu.o
+
 # to skip one line we need to have backslash \
 
 all: $(OUTPUT)
@@ -32,6 +34,11 @@ build/boot.o: src/boot.S
 build/vector.o: src/vector.S
 	@mkdir -p build
 	$(AS) $(ASFLAGS) -c $< -o $@
+
+# CC means compiler "code" and AC assembler "code"
+build/mmu.o: src/mmu.S
+	@mkdir -p build
+	$(CC) $(ASFLAGS) -c $< -o $@
 
 build/main.o: src/main.c include/uart/uart0.h include/ipc/ipc.h
 	@mkdir -p build
