@@ -67,10 +67,12 @@ clear_bss:
     b       clear_bss
     
 bss_done:
+    bl      mmu_on
     bl      main
     b       hang
 
 secondary_cpu:
+    bl      mmu_on
     bl      secondary_main
     
 hang:
