@@ -21,7 +21,7 @@ endif
 
 OBJS = build/boot.o build/vector.o build/irq.o build/main.o \
 	   build/uart0.o build/ipc.o build/ringbuf.o build/tests.o build/timer_tests.o \
-	   build/mmu.o
+	   build/mmu.o build/sched.o build/scheduler.o
 
 # to skip one line we need to have backslash \
 
@@ -37,6 +37,10 @@ build/vector.o: src/vector.S
 
 # CC means compiler "code" and AC assembler "code"
 build/mmu.o: src/mmu.S
+	@mkdir -p build
+	$(CC) $(ASFLAGS) -c $< -o $@
+
+build/sched.o: src/sched.S
 	@mkdir -p build
 	$(CC) $(ASFLAGS) -c $< -o $@
 
@@ -63,6 +67,11 @@ build/tests.o: tests/trivial/tests.c tests/trivial/tests.h  \
 
 build/timer_tests.o: tests/interrupt/timer_tests.c tests/interrupt/timer_tests.h \
 				include/uart/uart0.h include/ipc/ipc.h include/ringbuffer/ringbuf.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/scheduler.o: include/scheduler/scheduler.c include/scheduler/scheduler.h \
+				include/uart/uart0.h 
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
