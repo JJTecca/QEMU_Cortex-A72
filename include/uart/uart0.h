@@ -30,7 +30,7 @@ void uart_init(void);
 void uart_putc(char c);
 void uart_puts(const char *s);
 void uart_puthex(unsigned long value);
-bool uart_hasData(void);
+bool uart_has_data(void);
 const unsigned int uart_special_chars(unsigned char*);
 unsigned uart_getc(void);
 key_event_t uart_key_event(unsigned char byte);

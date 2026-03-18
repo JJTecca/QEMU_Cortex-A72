@@ -28,6 +28,7 @@
 #include "interrupts/irq.h"
 #include "trivial/tests.h"
 #include "interrupt/timer_tests.h"
+#include "scheduler/scheduler.h"
 
 /******************************************************************************
  * Macro Definition
@@ -110,6 +111,65 @@ long psci_cpu_on(unsigned long cpu, unsigned long entry) {
     return x0;
 }
 
+void uart_rx_task(void) {
+    /* Simulating real time keyboard */
+    while (1) {
+        if(uart_has_data()) {
+            unsigned char c = (unsigned char)uart_getc();
+            ring_buffer_put(UART_RX_BUFFER, c);
+            __asm__ volatile("sev" ::: "memory");
+        }
+        task_yield();
+    }
+}
+
+void ring_consumer_task(void) {
+    unsigned char byte = '\0';
+    while (1) {
+        if (ring_buffer_get(UART_RX_BUFFER, &byte) == 0) {
+
+            /* Halt the system when ctr+c arrives */
+            spinlock_acquire(SPINLOCK_ADDR);
+            switch (uart_key_event(byte)) {
+                case KEY_CTRL_C:
+                    uart_puts("\r\n[ERROR] Keyboard locked. System halted.\r\n");
+                    while (1) { __asm__ volatile("wfe"); }
+                    break;
+                case KEY_ENTER:
+                    uart_puts("\r\n");
+                    break;
+                case KEY_NONE:
+                default:
+                    uart_putc(byte);
+                    break;
+            }
+            spinlock_release(SPINLOCK_ADDR);
+        }
+        task_yield();
+    }
+}
+
+void mailbox_dispatcher_task(void) {
+    unsigned int sender, msg_type, msg_data;
+    unsigned long cpu = get_cpu_id();   // will always be 3 when this runs
+
+    while (1) {
+        if (mailbox_receive(cpu, &sender, &msg_type, &msg_data) == 1) {
+
+            spinlock_acquire(SPINLOCK_ADDR);
+            uart_puts("[Core 3] RX from Core "); uart_putc('0' + sender);
+            uart_puts(" | Type: ");              uart_putc('0' + msg_type);
+            uart_puts(" | Data: ");              uart_puthex(msg_data);
+            uart_puts("\n");
+            spinlock_release(SPINLOCK_ADDR);
+
+            unsigned int ack_data = msg_data + (cpu << 16);
+            mailbox_send(sender, MSG_ACK, ack_data);
+            mailbox_clear(cpu);
+        }
+        task_yield();   // nothing in mailbox → give turn to next task
+    }
+}
 /******************************************************************************
  * Function: secondary_main
  * Description: Entry point for secondary CPU cores (Cores 1-3)
@@ -131,25 +191,6 @@ void secondary_main(void) {
     uart_puts("\n");
     spinlock_release(SPINLOCK_ADDR);
 
-    // Testing UART0 Core Communication
-    unsigned int sender, msg_type, msg_data;
-    for (int i = 0; i < 10; i++) {
-        if (mailbox_receive(cpu, &sender, &msg_type, &msg_data) == 1) {
-            spinlock_acquire(SPINLOCK_ADDR);
-            uart_puts("[Core "); uart_putc('0' + cpu);
-            uart_puts("] RX from Core "); uart_putc('0' + sender);
-            uart_puts(" | Type: "); uart_putc('0' + msg_type);
-            uart_puts(" | Data: "); uart_puthex(msg_data);
-            uart_puts("\n");
-            spinlock_release(SPINLOCK_ADDR);
-
-            unsigned int ack_data = msg_data + (cpu << 16);
-            mailbox_send(sender, MSG_ACK, ack_data);
-            mailbox_clear(cpu);
-        }
-        delay(3000000);
-    }
-
     // Testing with circular ring buffer 0 delay
     if (cpu == 1) {
         // Core 1: Producer — push test bytes 'A' to 'J' into ring buffer
@@ -161,18 +202,8 @@ void secondary_main(void) {
             ring_buffer_put(UART_RX_BUFFER, c);
         }
 
-        /* Simulating real time keyboard */
-        while (1) {
-            unsigned char c = (unsigned char)uart_getc();
-            ring_buffer_put(UART_RX_BUFFER, c);
-            __asm__ volatile("sev" ::: "memory");
-        }
-
-        // Signal Core 2 that data is ready
-        __asm__ volatile("sev" ::: "memory");
-
-        // Core 1 sleeps after test — later this becomes the UART RX loop
-        while (1) { __asm__ volatile("wfe"); }
+        sched_add_task(uart_rx_task, "uart_rx");
+        sched_run();
     }
 
     if (cpu == 2) {
@@ -200,38 +231,13 @@ void secondary_main(void) {
         uart_puts("[Core 2] Ring buffer test COMPLETE\n");
         spinlock_release(SPINLOCK_ADDR);
 
-        /* Aquire the written keyboard char */
-        while (1) {
-            if (ring_buffer_get(UART_RX_BUFFER, &byte) == 0) {
-
-                /* Halt the system when ctr+c arrives */
-                spinlock_acquire(SPINLOCK_ADDR);
-                switch (uart_key_event(byte)) {
-                    case KEY_CTRL_C:
-                        uart_puts("\r\n[ERROR] Keyboard locked. System halted.\r\n");
-                        while (1) { __asm__ volatile("wfe"); }
-                        break;
-                    case KEY_ENTER:
-                        uart_puts("\r\n");
-                        break;
-                    case KEY_NONE:
-                    default:
-                        uart_putc(byte);
-                        break;
-                }
-                spinlock_release(SPINLOCK_ADDR);
-
-            } else {
-                __asm__ volatile("wfe");
-            }
-        }
-
-        while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
+        sched_add_task(ring_consumer_task, "ring_buf");
+        sched_run();
     }
 
     if (cpu == 3) {
-        // Core 3: sleeping — reserved for SPI/I2C bus master later
-        while (1) { __asm__ volatile("wfe"); }
+        sched_add_task(mailbox_dispatcher_task,"mailbox_dis");
+        sched_run();
     }
 }
 /******************************************************************************
