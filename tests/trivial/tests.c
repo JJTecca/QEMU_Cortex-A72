@@ -206,7 +206,7 @@ void test3_uart_rx_keyboard_simulation(void) {
     spinlock_release(SPINLOCK_ADDR);
 
     // Core 0 enters low-power idle — test runs on Cores 1 & 2
-    while (1) { __asm__ volatile("wfe"); }
+    // while (1) { __asm__ volatile("wfe"); } // IMPORTANT to be commented when having scheduler
 }
 
 /******************************************************************************
@@ -226,3 +226,4 @@ void run_all_tests(void) {
     test2_send_data_messages();
     test3_uart_rx_keyboard_simulation();  // Does not return (WFE loop)
 }
+

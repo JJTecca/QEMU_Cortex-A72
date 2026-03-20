@@ -202,8 +202,7 @@ void secondary_main(void) {
             ring_buffer_put(UART_RX_BUFFER, c);
         }
 
-        sched_add_task(uart_rx_task, "uart_rx");
-        sched_run();
+        while (1) { __asm__ volatile("wfe"); }
     }
 
     if (cpu == 2) {
@@ -231,8 +230,7 @@ void secondary_main(void) {
         uart_puts("[Core 2] Ring buffer test COMPLETE\n");
         spinlock_release(SPINLOCK_ADDR);
 
-        sched_add_task(ring_consumer_task, "ring_buf");
-        sched_run();
+        while (1) { __asm__ volatile("wfe"); }
     }
 
     if (cpu == 3) {
@@ -301,8 +299,10 @@ void main(void) {
     spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n[Core 0] === Starting Communication Test ===\n\n");
     spinlock_release(SPINLOCK_ADDR);
-    
+
     run_all_tests();
 
-    while (1) { __asm__ volatile("wfe"); } // Core goes to sleep forever
+    sched_add_task(uart_rx_task,       "uart_rx");
+    sched_add_task(ring_consumer_task, "ring_consumer");
+    sched_run();
 }
