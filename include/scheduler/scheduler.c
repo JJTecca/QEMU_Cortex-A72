@@ -18,9 +18,9 @@
  * GLOBAL VARIABLES
  ***************************************************/
 static tcb_t task_pool[CORE_COUNT][MAX_TASKS]; // Maximum amount of tasks per core is undefined for now
-static uint32_t *task_count;
-static uint32_t *current_task;
-static volatile uint64_t *tick_count; // ms counter / core
+static uint32_t task_count[CORE_COUNT];
+static uint32_t current_task[CORE_COUNT];
+static volatile uint64_t tick_count[CORE_COUNT]; // ms counter / core
 
  /**************************************************
  * HELPER FUNCTIONS
@@ -59,7 +59,7 @@ void sched_add_task(void (*entry)(void), const char *name)
     uint64_t *stack_top = (uint64_t *)(t->stack + TASK_STACK_SIZE);
     stack_top -= 12;                        /* 12 slots = 96 bytes          */
     for (int i = 0; i < 12; i++) stack_top[i] = 0;
-    stack_top[11] = (uint64_t)entry;        /* slot 11 = x30 = LR          */
+    stack_top[1] = (uint64_t)entry;        /* slot 11 = x30 = LR          */
     t->sp = (uint64_t)stack_top;
 
     task_count[core]++;
@@ -164,10 +164,12 @@ void sched_run(void)
     uart_putc('0' + task_count[core]);
     uart_puts(" task(s)\n");
 
-    current_task[core]       = 0;
+    current_task[core] = 0;
     task_pool[core][0].state = TASK_RUNNING;
-    task_pool[core][0].entry();
 
-    /* unreachable */
+    //Using a boot temp as entry to make the switch 
+    static tcb_t boot_temp[CORE_COUNT];
+    sched_context_switch(&boot_temp[core], &task_pool[core][0]);
+
     while (1) { __asm__ volatile("wfe"); }
 }
