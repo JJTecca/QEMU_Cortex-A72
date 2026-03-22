@@ -6,8 +6,19 @@
  * Author: Maior Cristian
  *****************************************************************************/
 
+ /***************************************************
+ * Macro Definitions
+ **************************************************/
 #ifndef TESTS_H
 #define TESTS_H
+
+#define TEST_PING_DATA_BASE     0x1000
+#define TEST_DATA_BASE          0xDEAD0000
+#define TEST_DATA_STEP          0x100
+#define TEST_ACK_POLL_ROUNDS    10
+#define TEST_DELAY_SHORT        2000000
+#define TEST_DELAY_MEDIUM       3000000
+#define TEST_DELAY_LONG         10000000
 
 /**************************************************
  * HELPER FUNCTIONS
