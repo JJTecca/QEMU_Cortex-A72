@@ -20,31 +20,30 @@
 
 sched_context_switch:
 
-    /* ── 1. Push callee-saved regs onto OLD task's stack ──────────────── */
+    /* ── 1. Push callee-saved regs onto OLD task's stack ── */
     stp  x19, x20, [sp, #-16]!
     stp  x21, x22, [sp, #-16]!
     stp  x23, x24, [sp, #-16]!
     stp  x25, x26, [sp, #-16]!
     stp  x27, x28, [sp, #-16]!
-    stp  x29, x30, [sp, #-16]!    /* x30 = return addr into task_yield()  */
+    stp  x29, x30, [sp, #-16]!
 
-    /* ── 2. Save current SP → old_tcb->sp (offset 0) ─────────────────── */
+    /* ── 2. Save current SP → old_tcb->sp  (offset 0) ── */
     mov  x2, sp
-    str  x2, [x0, #0]
+    str  x2, [x0, #0]           /* ← was #2048, must be #0 */
 
-    /* ── 3. Load new SP ← new_tcb->sp (offset 0) ─────────────────────── */
-    ldr  x2, [x1, #0]
+    /* ── 3. Load new SP ← new_tcb->sp  (offset 0) ── */
+    ldr  x2, [x1, #0]           /* ← was #2048, must be #0 */
     mov  sp, x2
 
-    /* ── 4. Pop callee-saved regs from NEW task's stack ──────────────── */
-    ldp  x29, x30, [sp], #16      /* x30 = where new task last yielded    */
+    /* ── 4. Pop callee-saved regs from NEW task's stack ── */
+    ldp  x29, x30, [sp], #16
     ldp  x27, x28, [sp], #16
     ldp  x25, x26, [sp], #16
     ldp  x23, x24, [sp], #16
     ldp  x21, x22, [sp], #16
     ldp  x19, x20, [sp], #16
 
-    /* ── 5. Return on new task's stack ───────────────────────────────── */
     ret
 
 .size sched_context_switch, . - sched_context_switch

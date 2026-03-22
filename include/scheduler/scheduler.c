@@ -59,7 +59,7 @@ void sched_add_task(jobContext_t *job)
     uint64_t *stack_top = (uint64_t *)(t->stack + TASK_STACK_SIZE);
     stack_top -= 12;
     for (int i = 0; i < 12; i++) stack_top[i] = 0;
-    stack_top[11] = (uint64_t)job->entry;   // ← slot 11 = x30
+    stack_top[1] = (uint64_t)job->entry;   // ← slot 11 = x30
     t->sp = (uint64_t)stack_top;
 
     task_count[core]++;
