@@ -5,7 +5,7 @@ AS = aarch64-none-elf-as
 LD = aarch64-none-elf-ld
 OBJCOPY = aarch64-none-elf-objcopy
 
-CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -g -Wall -Iinclude -Itests
+CFLAGS = -mcpu=cortex-a72 -ffreestanding -nostdlib -O0 -g -Wall -Iinclude -Itests -Idispatcher
 ASFLAGS = -mcpu=cortex-a72
 
 ifeq ($(PLATFORM),qemuvirt)
@@ -21,7 +21,7 @@ endif
 
 OBJS = build/boot.o build/vector.o build/irq.o build/main.o \
 	   build/uart0.o build/ipc.o build/ringbuf.o build/tests.o build/timer_tests.o \
-	   build/mmu.o build/sched.o build/scheduler.o
+	   build/mmu.o build/sched.o build/scheduler.o build/dispatcher.o
 
 # to skip one line we need to have backslash \
 
@@ -72,6 +72,12 @@ build/timer_tests.o: tests/interrupt/timer_tests.c tests/interrupt/timer_tests.h
 
 build/scheduler.o: include/scheduler/scheduler.c include/scheduler/scheduler.h \
 				include/uart/uart0.h 
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/dispatcher.o: dispatcher/dispatcher.c dispatcher/dispatcher.h \
+        	include/uart/uart0.h include/ipc/ipc.h include/ringbuffer/ringbuf.h \
+			include/scheduler/scheduler.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 

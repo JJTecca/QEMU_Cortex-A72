@@ -14,6 +14,25 @@
 #ifndef UART0_H
 #define UART0_H
 
+/**************************************************
+ * MACRO DEFINTIONS
+ ***************************************************/
+#ifdef TARGET_QEMU
+    #define UART0_BASE 0x09000000
+#elif defined(TARGET_RPI5)
+    #define UART0_BASE  0x40030000
+    #define UART_CR_OFFSET    0x30
+    #define UART_IBRD_OFFSET  0x24
+    #define UART_FBRD_OFFSET  0x28
+    #define UART_LCRH_OFFSET  0x2C
+    #define UART_IMSC_OFFSET  0x38
+    #define UART_ICR_OFFSET   0x44
+#else 
+    #error "Target undefined! Use an official platform"
+#endif
+#define UART_DR_OFFSET   0x00
+#define UART_FR_OFFSET   0x18
+
 /*************************************************
  *  TYPEDEF STRUCTS UNIONS ENUMS
  ************************************************/

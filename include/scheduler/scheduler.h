@@ -18,6 +18,7 @@
  * INCLUDE FILES
  ***************************************************/
 #include <stdint.h>
+#include "dispatcher.h"
 
 /**************************************************
  * MACRO DEFINTIONS
@@ -38,6 +39,7 @@ typedef enum {
 
 typedef struct {
     uint64_t      sp;                     /* saved SP */
+    uint16_t      id;                       /* the task ID for dispatcher */
     uint8_t       stack[TASK_STACK_SIZE]; /* private stack, grows downward  */
     task_state_t  state;
     uint64_t      wake_tick;              /* wake when tick_count >= this   */
@@ -45,7 +47,7 @@ typedef struct {
     const char   *name;                   /* debug label                    */
 } tcb_t;
 
-void sched_add_task(void (*entry)(void), const char *name);
+void sched_add_task(jobContext_t *job);
 void sched_run(void);
 void task_yield(void);
 void task_sleep_ms(uint32_t ms);

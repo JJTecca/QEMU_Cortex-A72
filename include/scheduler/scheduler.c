@@ -39,15 +39,15 @@ static inline uint32_t get_core_id(void)
  * Parameters: *entry (function) , task description
  * Returns: None
  *****************************************************************************/
-void sched_add_task(void (*entry)(void), const char *name)
+void sched_add_task(jobContext_t *job)
 {
     uint32_t core = get_core_id();
     uint32_t idx  = task_count[core];
-
-    tcb_t *t  = &task_pool[core][idx];
-    t->entry  = entry;
-    t->name   = name;
-    t->state  = TASK_READY;
+    tcb_t *t      = &task_pool[core][idx];
+    t->id    = job->id;
+    t->entry = job->entry;
+    t->name  = job->task_name;
+    t->state = TASK_READY;
     t->wake_tick = 0;
 
     /*
@@ -57,9 +57,9 @@ void sched_add_task(void (*entry)(void), const char *name)
      * first 'ret' in sched_context_switch jumps into entry().
      */
     uint64_t *stack_top = (uint64_t *)(t->stack + TASK_STACK_SIZE);
-    stack_top -= 12;                        /* 12 slots = 96 bytes          */
+    stack_top -= 12;
     for (int i = 0; i < 12; i++) stack_top[i] = 0;
-    stack_top[1] = (uint64_t)entry;        /* slot 11 = x30 = LR          */
+    stack_top[11] = (uint64_t)job->entry;   // ← slot 11 = x30
     t->sp = (uint64_t)stack_top;
 
     task_count[core]++;
@@ -67,7 +67,7 @@ void sched_add_task(void (*entry)(void), const char *name)
     uart_puts("[SCHEDULE] Core ");
     uart_putc('0' + core);
     uart_puts(": registered '");
-    uart_puts(name);
+    uart_puts(job->task_name);
     uart_puts("'\n");
 }
 
