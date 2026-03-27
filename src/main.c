@@ -30,12 +30,23 @@
 #include "interrupt/timer_tests.h"
 #include "scheduler/scheduler.h"
 #include "dispatcher.h"
+#include "crypto/hmac_sha256.h"
 
 /******************************************************************************
  * Macro Definition
  *****************************************************************************/
 #define PSCI_CPU_ON 0xC4000003
 
+/*****************************************************************************
+ * Global Variables
+ *****************************************************************************/
+static const uint8_t secret_key[HMAC_KEY_SIZE] = {
+        0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
+        0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C,
+        0x76, 0x2E, 0x45, 0x18, 0x5A, 0x31, 0xC7, 0xD9,
+        0x11, 0xF2, 0x83, 0x6A, 0xBC, 0x44, 0x07, 0x9E
+};
+ 
 /******************************************************************************
  * Function: delay
  * Description: Simple busy-wait delay loop
@@ -196,6 +207,7 @@ void main(void) {
     spinlock_init();
     uart_init();
     ring_buffer_init(UART_RX_BUFFER);
+    hmac_key_init(secret_key);
 
     spinlock_acquire(SPINLOCK_ADDR);
     uart_puts("\n=== Multi-Core Boot Test ===\n");

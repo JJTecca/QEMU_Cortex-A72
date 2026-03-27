@@ -8,7 +8,7 @@
 /**************************************************
  * INCLUDE FILES
  ***************************************************/
-
+#include <stdint.h>
 /**************************************************
  * MACRO DEFINTIONS
  ***************************************************/
@@ -35,6 +35,8 @@ typedef struct {
     volatile unsigned int sender_id;    // Source core ID
     volatile unsigned int status;       // 0=empty, 1=ready, 2=processed
     volatile unsigned int counter;      // Message counter
+    volatile uint8_t      tag[32];      //expansion with tag[32]
+                                        //exactly 32 bytes, matching HMAC_TAG_SIZE
 } mailbox_t;
 
 #define GET_MAILBOX(core_id) ((volatile mailbox_t*)(MAILBOX_BASE + (core_id) * sizeof(mailbox_t)))

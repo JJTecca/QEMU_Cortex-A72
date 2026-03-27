@@ -14,9 +14,6 @@
 #ifndef UART0_H
 #define UART0_H
 
-/**************************************************
- * MACRO DEFINTIONS
- ***************************************************/
 #ifdef TARGET_QEMU
     #define UART0_BASE 0x09000000
 #elif defined(TARGET_RPI5)
