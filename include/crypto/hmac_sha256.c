@@ -68,6 +68,25 @@ void hmac_tag_compute(const volatile mailbox_t *mb, uint8_t tag_out[HMAC_TAG_SIZ
     msg[14] = (uint8_t)(mb->counter >> 8);
     msg[15] = (uint8_t)(mb->counter);
 
+    /* k_padded init with HMAC_KEY_ADDR values*/
+    /* First for loop copies the first HMAC_KEY_ADDR with the first half*/
+    /* Second for copies full 0 into the other half */
+    for (unsigned int i = 0; i < 32; i++) k_padded[i] = HMAC_KEY_ADDR[i];
+    for (unsigned int i = 32; i < 64; i++) k_padded[i] = 0x00;
+
+    /* ipad_key = (000000HMAC_KEY_ADDR) ^ 0x36 */
+    for (unsigned int i = 0; i < 64; i++) ipad_key[i] = k_padded[i] ^ HMAC_IPAD;
+    tc_sha256_init(&state);
+    tc_sha256_update(&state, ipad_key, 64);
+    tc_sha256_update(&state, msg, 16);
+    tc_sha256_final(inner_hash, &state);
+
+    /* opad_key = (000000HMAC_KEY_ADDR) ^ 0x5C */
+    for (unsigned int i = 0; i < 64; i++) opad_key[i] = k_padded[i] ^ HMAC_OPAD;
+    tc_sha256_init(&state);
+    tc_sha256_update(&state, opad_key, 64);
+    tc_sha256_update(&state, inner_hash, 32);
+    tc_sha256_final(tag_out, &state);
 }
 
 int hmac_tag_verify(const volatile mailbox_t *mb)

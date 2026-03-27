@@ -25,6 +25,7 @@
 #define HMAC_OPAD        0x5C
 
 /* Fixed address in shared RAM — 8-byte aligned after ring buffer */
+/* RFC 2104 standard */
 #define HMAC_KEY_ADDR    ((const uint8_t *)0x40220310)
 
 /**************************************************
