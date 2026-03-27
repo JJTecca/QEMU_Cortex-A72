@@ -96,9 +96,9 @@ int mailbox_send(int dest_core, int msg_type, unsigned int data) {
     mb->sender_id = sender;
     mb->msg_type = msg_type;
     mb->msg_data = data;
+    mb->counter++;
     //Compute the HMAC tag[]
     hmac_tag_compute(mb,(uint8_t*)mb->tag);
-    mb->counter++;
     
     //Mark as Ready
     mb->status = 1;
@@ -118,6 +118,8 @@ int mailbox_send(int dest_core, int msg_type, unsigned int data) {
 int mailbox_receive(int core_id, unsigned int *sender, unsigned int *msg_type, unsigned int *data) {
     volatile mailbox_t *mb = GET_MAILBOX(core_id);
     int result = 0;
+    unsigned long shared_key1 = 0x0000000000000000;
+    unsigned long shared_key2 = 0x0000000000000000;
     
     spinlock_acquire((volatile unsigned int*)&mb->lock);
     
@@ -128,6 +130,23 @@ int mailbox_receive(int core_id, unsigned int *sender, unsigned int *msg_type, u
         *data = mb->msg_data;
         mb->status = 2;  // Mark as being processed
         result = 1;
+        uart_puts("[CRYPTO] HMAC pass with key\n");
+        for(unsigned i = 0 ; i < 16; i++) {
+            shared_key1 |= mb->tag[i];
+            //uart_puthex(shared_key1);
+            //uart_putc('\n');
+            shared_key1 = shared_key1 << 8;
+        }
+        uart_puthex(shared_key1);
+        uart_putc('\n');
+        for(unsigned i = 16 ; i < 32; i++) {
+            shared_key2 |= mb->tag[i];
+            //uart_puthex(shared_key2);
+            //uart_putc('\n');
+            shared_key2 = shared_key2 << 8;
+        }
+        uart_puthex(shared_key1);
+        uart_putc('\n');
     } else if (mb->status == 1) {
         // tag mismatch — tampered or replayed
         uart_puts("[CRYPTO] HMAC verify FAILED - message rejected\n");
