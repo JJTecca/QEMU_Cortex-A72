@@ -8,6 +8,8 @@
  * INCLUDE FILES
  ***************************************************/
 #include "ipc/ipc.h"
+#include "crypto/hmac_sha256.h"
+#include "uart/uart0.h"
 
 /**************************************************
  * MACRO DEFINTIONS
@@ -85,7 +87,7 @@ int mailbox_send(int dest_core, int msg_type, unsigned int data) {
         spinlock_release((volatile unsigned int*)&mb->lock);
         return -1; 
     }
-    
+
     // Write message
     unsigned int sender;
     __asm__ volatile("mrs %0, mpidr_el1" : "=r"(sender));
@@ -94,9 +96,12 @@ int mailbox_send(int dest_core, int msg_type, unsigned int data) {
     mb->sender_id = sender;
     mb->msg_type = msg_type;
     mb->msg_data = data;
-    mb->status = 1;  // Mark as ready
+    //Compute the HMAC tag[]
+    hmac_tag_compute(mb,(uint8_t*)mb->tag);
     mb->counter++;
     
+    //Mark as Ready
+    mb->status = 1;
     spinlock_release((volatile unsigned int*)&mb->lock);
     
     // Wake up destination core
@@ -116,13 +121,18 @@ int mailbox_receive(int core_id, unsigned int *sender, unsigned int *msg_type, u
     
     spinlock_acquire((volatile unsigned int*)&mb->lock);
     
-    if (mb->status == 1) {
+    if (mb->status == 1 && hmac_tag_verify(mb)) {
         // Message available
         *sender = mb->sender_id;
         *msg_type = mb->msg_type;
         *data = mb->msg_data;
         mb->status = 2;  // Mark as being processed
         result = 1;
+    } else if (mb->status == 1) {
+        // tag mismatch — tampered or replayed
+        uart_puts("[CRYPTO] HMAC verify FAILED - message rejected\n");
+        mb->status = 2;
+        result = 0;
     }
     
     spinlock_release((volatile unsigned int*)&mb->lock);
