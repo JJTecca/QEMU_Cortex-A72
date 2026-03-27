@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include "crypto/hmac_sha256.h"
 #include "crypto/sha256.h"
+#include "uart/uart0.h"
 
 /**************************************************
  * MACRO DEFINITIONS

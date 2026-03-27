@@ -21,7 +21,8 @@ endif
 
 OBJS = build/boot.o build/vector.o build/irq.o build/main.o \
 	   build/uart0.o build/ipc.o build/ringbuf.o build/tests.o build/timer_tests.o \
-	   build/mmu.o build/sched.o build/scheduler.o build/dispatcher.o
+	   build/mmu.o build/sched.o build/scheduler.o build/dispatcher.o \
+	   build/hmac_sha256.o build/sha256.o
 
 # to skip one line we need to have backslash \
 
@@ -52,7 +53,7 @@ build/uart0.o: include/uart/uart0.c include/uart/uart0.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
-build/ipc.o: include/ipc/ipc.c include/ipc/ipc.h
+build/ipc.o: include/ipc/ipc.c include/ipc/ipc.h include/uart/uart0.h
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -82,6 +83,15 @@ build/dispatcher.o: dispatcher/dispatcher.c dispatcher/dispatcher.h \
 	$(CC) $(CFLAGS) -c $< -o $@
 
 build/irq.o: include/interrupts/irq.c include/interrupts/irq.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/hmac_sha256.o: include/crypto/hmac_sha256.c include/crypto/hmac_sha256.h include/crypto/sha256.h \
+					 include/uart/uart0.h
+	@mkdir -p build
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/sha256.o: include/crypto/sha256.c include/crypto/sha256.h include/crypto/tc_defs.h 
 	@mkdir -p build
 	$(CC) $(CFLAGS) -c $< -o $@
 
