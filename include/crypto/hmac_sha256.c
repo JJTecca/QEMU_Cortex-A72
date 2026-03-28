@@ -23,6 +23,12 @@
 /**************************************************
  * HELPER FUNCTIONS
  ***************************************************/
+
+/******************************************************************************
+* Function: hmac_key_init
+* Description: copy the key from the HMAC_KEY_ADDRESS into the local copy_key
+* Returns: none
+*****************************************************************************/
 void hmac_key_init(const uint8_t key[HMAC_KEY_SIZE])
 {
     volatile uint8_t *copy_key = ((volatile uint8_t*) HMAC_KEY_ADDR);
@@ -35,6 +41,14 @@ void hmac_key_init(const uint8_t key[HMAC_KEY_SIZE])
     uart_puts("[CRYPTO] HMAC key loaded\n"); // Assist instruction
 } 
 
+/******************************************************************************
+* Function: hmac_tag_compute
+* Description: 1. assign byte by byte into the msg array so that each index contains 1 byte out of 4
+               2. k_padded = HMAC_KEY_ADDRESS + full zeros
+               3. ipad_key = (HMAC_KEY_ADDR00000000) ^ 0x36
+               4. read the .md for the concrete example
+* Returns: none
+*****************************************************************************/
 void hmac_tag_compute(const volatile mailbox_t *mb, uint8_t tag_out[HMAC_TAG_SIZE])
 {
     uint8_t  k_padded[64];       // key zero-padded to SHA-256 block size
@@ -89,6 +103,11 @@ void hmac_tag_compute(const volatile mailbox_t *mb, uint8_t tag_out[HMAC_TAG_SIZ
     tc_sha256_final(tag_out, &state);
 }
 
+/******************************************************************************
+* Function: hmac_tag_verify
+* Description: expected[i] MUST equal to mb->tag[i] i.e 1 XOR 1 = 0 
+* Returns: true or false
+*****************************************************************************/
 int hmac_tag_verify(const volatile mailbox_t *mb)
 {
     uint8_t  expected[32];       // used in the verify hmac function
